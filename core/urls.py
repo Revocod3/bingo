@@ -21,13 +21,14 @@ from users.views import (
     UserViewSet, RegisterView, VerifyEmailView, ResendVerificationView,
     FacebookLogin, GoogleLogin
 )
-from bingo.views import EventViewSet, BingoCardViewSet
+from bingo.views import EventViewSet, BingoCardViewSet, NumberViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'events', EventViewSet)
 router.register(r'cards', BingoCardViewSet)
+router.register(r'numbers', NumberViewSet)
 
 auth_urlpatterns = [
     # JWT Authentication
