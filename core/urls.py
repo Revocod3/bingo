@@ -15,16 +15,45 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.urls import path, include
+from django.contrib import admin
 from rest_framework.routers import DefaultRouter
-from users.views import UserViewSet
+from users.views import (
+    UserViewSet, RegisterView, VerifyEmailView, ResendVerificationView,
+    FacebookLogin, GoogleLogin
+)
 from bingo.views import EventViewSet, BingoCardViewSet
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'events', EventViewSet)
 router.register(r'cards', BingoCardViewSet)
 
+auth_urlpatterns = [
+    # JWT Authentication
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # Custom authentication endpoints
+    path('register/', RegisterView.as_view(), name='register'),
+    path('verify-email/', VerifyEmailView.as_view(), name='verify_email'),
+    path('resend-verification/', ResendVerificationView.as_view(), name='resend_verification'),
+    
+    # Social auth endpoints
+    path('facebook/', FacebookLogin.as_view(), name='facebook_login'),
+    path('google/', GoogleLogin.as_view(), name='google_login'),
+    
+    # dj-rest-auth URLs for login, logout, password reset, etc.
+    path('', include('dj_rest_auth.urls')),
+    
+    # Social auth URLs
+    path('social/', include('dj_rest_auth.registration.urls')),
+    path('social/facebook/', include('allauth.socialaccount.providers.facebook.urls')),
+    path('social/google/', include('allauth.socialaccount.providers.google.urls')),
+]
+
 urlpatterns = [
+    path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
-    path('api/auth/', include('rest_framework.urls')),
+    path('api/auth/', include(auth_urlpatterns)),
 ]

@@ -9,3 +9,11 @@ python-dotenv==1.0.1
 sqlparse==0.5.3
 typing_extensions==4.12.2
 whitenoise
+django-allauth==0.57.0
+dj-rest-auth==5.0.1
+django-cors-headers==4.3.1
+djangorestframework-simplejwt==5.3.1
+django-cors-headers>=3.13.0
+cffi==1.17.1
+cryptography==44.0.2
+pycparser==2.22
