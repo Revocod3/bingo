@@ -1,0 +1,483 @@
+openapi: 3.0.3
+info:
+  title: Bingo API
+  description: API for the Bingo application
+  version: 1.0.0
+  contact:
+    email: admin@example.com
+servers:
+  - url: http://localhost:8000/api
+    description: Local development server
+paths:
+  /auth/register/:
+    post:
+      summary: Register a new user
+      operationId: registerUser
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        201:
+          description: User successfully created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+                    example: "Verification email sent. Please check your inbox."
+        400:
+          description: Invalid input data
+  /auth/verify-email/:
+    post:
+      summary: Verify user's email address
+      operationId: verifyEmail
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        200:
+          description: Email successfully verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Email verified successfully"
+        400:
+          description: Invalid token or already verified
+  /auth/resend-verification/:
+    post:
+      summary: Resend verification email
+      operationId: resendVerification
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+      responses:
+        200:
+          description: Verification email sent again
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Verification email sent"
+        400:
+          description: Invalid email or already verified
+  /auth/token/:
+    post:
+      summary: Get JWT token
+      operationId: getToken
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        200:
+          description: Token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        401:
+          description: Invalid credentials
+  /auth/token/refresh/:
+    post:
+      summary: Refresh JWT token
+      operationId: refreshToken
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+      responses:
+        200:
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        401:
+          description: Invalid refresh token
+  /auth/facebook/:
+    post:
+      summary: Login with Facebook
+      operationId: facebookLogin
+      tags:
+        - Social Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FacebookLoginRequest'
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialLoginResponse'
+        400:
+          description: Invalid access token
+  /auth/google/:
+    post:
+      summary: Login with Google
+      operationId: googleLogin
+      tags:
+        - Social Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleLoginRequest'
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialLoginResponse'
+        400:
+          description: Invalid access token
+  /users/:
+    get:
+      summary: List all users
+      operationId: listUsers
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        401:
+          description: Unauthorized
+    post:
+      summary: Create a user
+      operationId: createUser
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        201:
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        400:
+          description: Invalid input
+        401:
+          description: Unauthorized
+  /events/:
+    get:
+      summary: List all events
+      operationId: listEvents
+      tags:
+        - Events
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        401:
+          description: Unauthorized
+    post:
+      summary: Create an event
+      operationId: createEvent
+      tags:
+        - Events
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventCreate'
+      responses:
+        201:
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        400:
+          description: Invalid input
+        401:
+          description: Unauthorized
+  /cards/:
+    get:
+      summary: List all bingo cards
+      operationId: listCards
+      tags:
+        - Bingo Cards
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: List of bingo cards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BingoCard'
+        401:
+          description: Unauthorized
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        is_active:
+          type: boolean
+        is_verified:
+          type: boolean
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - email
+    UserCreate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        first_name:
+          type: string
+        last_name:
+          type: string
+      required:
+        - email
+        - password
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+        first_name:
+          type: string
+        last_name:
+          type: string
+      required:
+        - email
+        - password
+    VerifyEmailRequest:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Verification token sent to the user's email
+      required:
+        - key
+    ResendVerificationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+        - email
+    TokenRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required:
+        - email
+        - password
+    TokenResponse:
+      type: object
+      properties:
+        access:
+          type: string
+          description: JWT access token
+        refresh:
+          type: string
+          description: JWT refresh token
+      required:
+        - access
+        - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          description: JWT refresh token
+      required:
+        - refresh
+    FacebookLoginRequest:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Facebook access token
+      required:
+        - access_token
+    GoogleLoginRequest:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Google access token
+      required:
+        - access_token
+    SocialLoginResponse:
+      type: object
+      properties:
+        access:
+          type: string
+          description: JWT access token
+        refresh:
+          type: string
+          description: JWT refresh token
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+        - access
+        - refresh
+        - user
+    Event:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        description:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        creator:
+          type: integer
+          description: User ID of the creator
+      required:
+        - name
+        - start_date
+    EventCreate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+      required:
+        - name
+        - start_date
+    BingoCard:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        event:
+          type: integer
+          description: Event ID
+        user:
+          type: integer
+          description: User ID
+        squares:
+          type: array
+          items:
+            type: object
+            properties:
+              position:
+                type: integer
+              text:
+                type: string
+              checked:
+                type: boolean
+      required:
+        - event
+        - user
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

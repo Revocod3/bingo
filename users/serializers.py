@@ -18,6 +18,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     
     class Meta:
+        ref_name = 'CustomRegisterSerializer'
         model = User
         fields = ('email', 'password', 'first_name', 'last_name')
     
@@ -64,6 +65,9 @@ class VerifyEmailSerializer(serializers.Serializer):
             return data
         except User.DoesNotExist:
             raise serializers.ValidationError("Invalid email or verification code")
+        
+    class Meta:
+        ref_name = 'CustomVerifyEmailSerializer'
 
 class ResendVerificationSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -74,3 +78,6 @@ class ResendVerificationSerializer(serializers.Serializer):
             return value
         except User.DoesNotExist:
             raise serializers.ValidationError("User with this email doesn't exist")
+        
+    class Meta:
+        ref_name = 'CustomResendVerificationSerializer'
