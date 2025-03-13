@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.core.mail import send_mail
 import random
 import string
+from allauth.account.models import EmailAddress
 
 User = get_user_model()
 
@@ -33,8 +34,15 @@ class RegisterSerializer(serializers.ModelSerializer):
             last_name=validated_data.get('last_name', ''),
             verification_code=verification_code,
             verification_code_created_at=timezone.now(),
-            # Auto-verify email if bypass is enabled
             is_email_verified=settings.BYPASS_EMAIL_VERIFICATION
+        )
+        
+        # Create EmailAddress record for django-allauth
+        email_address = EmailAddress.objects.create(
+            user=user,
+            email=user.email,
+            primary=True,
+            verified=settings.BYPASS_EMAIL_VERIFICATION
         )
         
         # Only send verification email if bypass is not enabled

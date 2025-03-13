@@ -17,6 +17,7 @@ from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
+from allauth.account.models import EmailAddress
 
 User = get_user_model()
 
@@ -73,6 +74,16 @@ class VerifyEmailView(generics.GenericAPIView):
         user.verification_code = None
         user.verification_code_created_at = None
         user.save()
+        
+        # Also update EmailAddress record for django-allauth
+        email_address, created = EmailAddress.objects.get_or_create(
+            user=user, 
+            email=email,
+            defaults={'primary': True, 'verified': True}
+        )
+        if not created:
+            email_address.verified = True
+            email_address.save()
         
         return Response({"detail": "Email verified successfully"}, status=status.HTTP_200_OK)
 

@@ -195,10 +195,15 @@ JWT_AUTH_REFRESH_COOKIE = 'bingo-app-refresh-token'
 SITE_ID = 1
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None # Use email for login
 ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+
+# Update these settings based on BYPASS_EMAIL_VERIFICATION
+BYPASS_EMAIL_VERIFICATION = os.getenv('BYPASS_EMAIL_VERIFICATION', 'True') == 'True'
+
+# Set these conditionally based on bypass setting
+ACCOUNT_EMAIL_VERIFICATION = 'optional' if BYPASS_EMAIL_VERIFICATION else 'mandatory'
+ACCOUNT_EMAIL_REQUIRED = True
 
 # Additional settings for dj-rest-auth
 REST_AUTH = {
@@ -222,7 +227,7 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@example.com')
 
 # Development settings
-BYPASS_EMAIL_VERIFICATION = os.getenv('BYPASS_EMAIL_VERIFICATION', 'False') == 'True'
+BYPASS_EMAIL_VERIFICATION = os.getenv('BYPASS_EMAIL_VERIFICATION', 'True') == 'True'
 
 # Social authentication providers
 SOCIALACCOUNT_PROVIDERS = {
