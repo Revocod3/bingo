@@ -41,8 +41,27 @@ schema_view = get_schema_view(
         title="Bingo API",
         default_version='v1',
         description="""API documentation for the Bingo application.
-        \n\nAuthentication: To authorize, click the 'Authorize' button and enter your JWT token with the Bearer prefix.
-        \n\nExample: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...""",
+        
+        ## Authentication
+        
+        There are two ways to obtain authentication tokens:
+        
+        1. **JWT Authentication (Recommended)**:
+           - Endpoint: `/api/auth/token/`
+           - Method: POST
+           - Payload: `{"email": "user@example.com", "password": "yourpassword"}`
+           - Response: `{"access": "your-jwt-token", "refresh": "your-refresh-token"}`
+           - Usage: Click the "Authorize" button and enter: `Bearer your-jwt-token`
+        
+        2. **Session Authentication (Alternative)**:
+           - Endpoint: `/api/auth/login/`
+           - Method: POST
+           - Payload: `{"email": "user@example.com", "password": "yourpassword"}`
+           - Response: Contains tokens and user information
+           - Usage: Same as JWT method
+        
+        Remember to include the `Bearer` prefix before your token when authorizing.
+        """,
         terms_of_service="https://www.example.com/terms/",
         contact=openapi.Contact(email="contact@example.com"),
         license=openapi.License(name="BSD License"),
