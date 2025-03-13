@@ -32,11 +32,14 @@ class RegisterSerializer(serializers.ModelSerializer):
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
             verification_code=verification_code,
-            verification_code_created_at=timezone.now()
+            verification_code_created_at=timezone.now(),
+            # Auto-verify email if bypass is enabled
+            is_email_verified=settings.BYPASS_EMAIL_VERIFICATION
         )
         
-        # Send verification email
-        self._send_verification_email(user, verification_code)
+        # Only send verification email if bypass is not enabled
+        if not settings.BYPASS_EMAIL_VERIFICATION:
+            self._send_verification_email(user, verification_code)
         
         return user
     

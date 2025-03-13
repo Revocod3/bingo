@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 import random
 import string
+from django.conf import settings
 from .serializers import (
     UserSerializer, 
     RegisterSerializer, 
@@ -89,6 +90,14 @@ class ResendVerificationView(generics.GenericAPIView):
         email = serializer.validated_data['email']
         user = User.objects.get(email=email)
         
+        # Auto-verify if bypass is enabled
+        if settings.BYPASS_EMAIL_VERIFICATION:
+            user.is_email_verified = True
+            user.verification_code = None
+            user.verification_code_created_at = None
+            user.save()
+            return Response({"detail": "Email verified automatically for development"}, status=status.HTTP_200_OK)
+        
         # Generate new verification code
         verification_code = ''.join(random.choices(string.digits, k=6))
         user.verification_code = verification_code
@@ -97,7 +106,6 @@ class ResendVerificationView(generics.GenericAPIView):
         
         # Send verification email
         from django.core.mail import send_mail
-        from django.conf import settings
         
         subject = 'Verify your email address'
         message = f'Your verification code is: {verification_code}'

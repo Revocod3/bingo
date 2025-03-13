@@ -1,0 +1,1 @@
+Configure correctly the SMTP and email verification logic, remove bypass
