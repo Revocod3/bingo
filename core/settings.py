@@ -186,6 +186,10 @@ AUTHENTICATION_BACKENDS = [
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'Authorization',  # Changed from HTTP_AUTHORIZATION
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
 }
 REST_USE_JWT = True
 JWT_AUTH_COOKIE = 'bingo-app-auth'
@@ -208,8 +212,8 @@ ACCOUNT_EMAIL_REQUIRED = True
 # Additional settings for dj-rest-auth
 REST_AUTH = {
     'USE_JWT': True,
-    'JWT_AUTH_COOKIE': 'my-app-auth',
-    'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
+    'JWT_AUTH_COOKIE': 'bingo-app-auth',  # Match this with JWT_AUTH_COOKIE above
+    'JWT_AUTH_REFRESH_COOKIE': 'bingo-app-refresh-token',  # Match this with JWT_AUTH_REFRESH_COOKIE above
     'USER_DETAILS_SERIALIZER': 'users.serializers.UserSerializer',
 }
 
@@ -268,3 +272,16 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # For local React app
     "http://127.0.0.1:3000",
 ]
+
+# Add drf-yasg settings for properly showing JWT auth
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    },
+    'USE_SESSION_AUTH': False,
+    'JSON_EDITOR': True,
+}
