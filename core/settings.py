@@ -115,17 +115,35 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 postgres_pswd = os.getenv('LOCAL_POSTGRESS_PSWD')
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'bingo',
-        'USER': 'bingouser',
-        'PASSWORD': postgres_pswd,
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+# Get environment - default to 'local' if not specified
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'local')
 
+if ENVIRONMENT == 'render':
+    # Render PostgreSQL database configuration with complete hostname
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'b1ngo_db_jdgd',
+            'USER': 'b1ngo_db_jdgd_user',
+            'PASSWORD': 'NOMENVGSehvKA120U1V4K6qMDFKRGjzz',
+            'HOST': 'dpg-cv8ve57noe9s739d1so0-a.oregon-postgres.render.com',  # Complete hostname
+            'PORT': '5432',
+        }
+    }
+else:
+    # Local development database configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'bingo',
+            'USER': 'bingouser',
+            'PASSWORD': postgres_pswd,
+            'HOST': 'localhost',
+            'PORT': '5432',
+        }
+    }
+
+# Override with DATABASE_URL if available (highest priority)
 database_url = os.getenv('DATABASE_URL')
 if database_url:
     DATABASES['default'] = dj_database_url.parse(database_url)
