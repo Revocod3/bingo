@@ -6,6 +6,11 @@ from django.core.mail import send_mail
 import random
 import string
 from allauth.account.models import EmailAddress
+import logging
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -52,12 +57,39 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
     
     def _send_verification_email(self, user, code):
-        subject = 'Verify your email address'
-        message = f'Your verification code is: {code}'
+        subject = 'Verify your Bingo account'
+        
+        # Create HTML content
+        html_message = render_to_string(
+            'email/verification_email.html',
+            {
+                'user': user,
+                'code': code,
+                'site_name': 'Bingo App'
+            }
+        )
+        
+        # Plain text fallback
+        plain_message = strip_tags(html_message)
+        if not html_message:
+            # If template doesn't exist, use a simple message
+            plain_message = f'Hello {user.first_name or "there"},\n\nYour verification code is: {code}\n\nThank you for registering!'
+        
         from_email = settings.DEFAULT_FROM_EMAIL
         recipient_list = [user.email]
         
-        send_mail(subject, message, from_email, recipient_list)
+        try:
+            send_mail(
+                subject, 
+                plain_message, 
+                from_email, 
+                recipient_list, 
+                html_message=html_message or None
+            )
+            logger.info(f"Verification email sent to {user.email}")
+        except Exception as e:
+            logger.error(f"Failed to send verification email: {str(e)}")
+            # Still create the user but log the error
 
 class VerifyEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()

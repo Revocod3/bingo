@@ -130,3 +130,36 @@ class AuthenticationTests(TestCase):
         }
         response = self.client.post(self.token_url, invalid_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+    def test_unverified_login_blocked(self):
+        """Test that unverified users cannot login"""
+        # Create an unverified user
+        unverified_user = User.objects.create_user(
+            email='unverified@example.com',
+            password='testpass123',
+            verification_code='123456',
+            verification_code_created_at=timezone.now(),
+            is_email_verified=False
+        )
+        
+        token_data = {
+            'email': 'unverified@example.com',
+            'password': 'testpass123'
+        }
+        response = self.client.post(self.token_url, token_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn('verification', str(response.content).lower())
+        
+    def test_bypass_email_verification_disabled(self):
+        """Test that the BYPASS_EMAIL_VERIFICATION setting actually prevents auto-verification"""
+        # This test depends on the BYPASS_EMAIL_VERIFICATION setting being False
+        response = self.client.post(self.register_url, self.user_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # Try to login with the newly registered user (should fail as email isn't verified)
+        token_data = {
+            'email': self.user_data['email'],
+            'password': self.user_data['password']
+        }
+        response = self.client.post(self.token_url, token_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
