@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.response import Response
@@ -18,6 +19,8 @@ from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
 from allauth.account.models import EmailAddress
+from django.db.utils import OperationalError
+from rest_framework.exceptions import APIException
 
 User = get_user_model()
 
@@ -54,6 +57,17 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
+    
+    def create(self, request, *args, **kwargs):
+        try:
+            return super().create(request, *args, **kwargs)
+        except OperationalError as e:
+            # Log the database connection error
+            logging.error(f"Database connection error during registration: {str(e)}")
+            # Return a service unavailable response
+            raise APIException(
+                "Database connection error. Please try again later."
+            )
 
 class VerifyEmailView(generics.GenericAPIView):
     """

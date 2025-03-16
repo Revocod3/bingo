@@ -85,6 +85,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # Add this line
+    'core.middleware.DatabaseConnectionMiddleware',  # Add this for database error handling
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -121,6 +122,11 @@ postgres_pswd = os.getenv('LOCAL_POSTGRESS_PSWD')
 # Get environment - default to 'local' if not specified
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'local')
 
+# Add database retry and timeout settings
+DATABASE_RETRY_ATTEMPTS = 3
+DATABASE_RETRY_DELAY = 1  # seconds
+DATABASE_TIMEOUT = 20  # seconds
+
 if ENVIRONMENT == 'render':
     # Render PostgreSQL database configuration with complete hostname
     DATABASES = {
@@ -131,6 +137,14 @@ if ENVIRONMENT == 'render':
             'PASSWORD': 'NOMENVGSehvKA120U1V4K6qMDFKRGjzz',
             'HOST': 'dpg-cv8ve57noe9s739d1so0-a.oregon-postgres.render.com',  # Complete hostname
             'PORT': '5432',
+            'CONN_MAX_AGE': 60,  # Keep connections alive for 60 seconds
+            'OPTIONS': {
+                'connect_timeout': DATABASE_TIMEOUT,  # Connection timeout in seconds
+                'keepalives': 1,  # Enable TCP keepalives
+                'keepalives_idle': 30,  # Seconds before sending keepalive
+                'keepalives_interval': 10,  # Seconds between keepalives
+                'keepalives_count': 5,  # Number of failed keepalives before dropping connection
+            },
         }
     }
 else:
