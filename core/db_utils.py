@@ -4,6 +4,7 @@ from django.db import connections
 from django.db.utils import OperationalError
 from django.conf import settings
 import socket
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,8 @@ def ensure_database_connection():
     """
     max_attempts = getattr(settings, 'DATABASE_RETRY_ATTEMPTS', 3)
     retry_delay = getattr(settings, 'DATABASE_RETRY_DELAY', 1)
+    
+    environment = os.getenv('ENVIRONMENT', 'local')
     
     for attempt in range(1, max_attempts + 1):
         try:
@@ -35,6 +38,14 @@ def ensure_database_connection():
                         logger.info(f"Manual DNS resolution: {db_host} resolves to {ip}")
                     except socket.gaierror as dns_error:
                         logger.error(f"Manual DNS resolution failed: {str(dns_error)}")
+                        
+                        # AWS RDS specific checks
+                        if environment == 'production' and '.rds.amazonaws.com' in db_host:
+                            logger.error("This appears to be an AWS RDS instance. Check:")
+                            logger.error("1. Security Group allows access from this server")
+                            logger.error("2. The instance is in an available state")
+                            logger.error("3. Network ACLs allow the connection")
+                            logger.error("4. VPC peering is configured correctly (if applicable)")
                 except Exception as inner_e:
                     logger.error(f"Error during hostname resolution check: {str(inner_e)}")
             

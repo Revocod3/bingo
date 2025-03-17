@@ -30,48 +30,38 @@ class Command(BaseCommand):
             ip_address = socket.gethostbyname(host)
             self.stdout.write(self.style.SUCCESS(f"✓ Hostname resolves to: {ip_address}"))
             
-            # Check if we're on Render.com and running a traceroute/ping
-            if os.getenv('ENVIRONMENT') == 'render':
-                self.stdout.write(self.style.NOTICE(f"\nTesting network connectivity to {host}:"))
-                try:
-                    result = subprocess.run(['ping', '-c', '3', host], 
-                                           capture_output=True, text=True, timeout=10)
-                    if result.returncode == 0:
-                        self.stdout.write(self.style.SUCCESS("✓ Host is reachable via ping"))
-                    else:
-                        self.stdout.write(self.style.ERROR(f"✗ Host ping failed: {result.stderr}"))
-                except Exception as e:
-                    self.stdout.write(self.style.WARNING(f"Couldn't run ping test: {str(e)}"))
+            # Check network connectivity
+            self.stdout.write(self.style.NOTICE(f"\nTesting network connectivity to {host}:"))
+            try:
+                result = subprocess.run(['ping', '-c', '3', host], 
+                                        capture_output=True, text=True, timeout=10)
+                if result.returncode == 0:
+                    self.stdout.write(self.style.SUCCESS("✓ Host is reachable via ping"))
+                else:
+                    self.stdout.write(self.style.ERROR(f"✗ Host ping failed: {result.stderr}"))
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"Couldn't run ping test: {str(e)}"))
         except socket.gaierror as e:
             self.stdout.write(self.style.ERROR(f"✗ Hostname resolution failed: {str(e)}"))
             
-            # More detailed suggestions for Render deployment
-            if os.getenv('ENVIRONMENT') == 'render':
+            # More detailed suggestions for AWS deployment
+            if os.getenv('ENVIRONMENT') == 'production':
                 self.stdout.write(self.style.WARNING(
-                    "\nOn Render.com, hostname resolution failures are often due to:"
+                    "\nHostname resolution failures are often due to:"
                 ))
                 self.stdout.write("1. Incorrect database URL format")
-                self.stdout.write("2. Missing domain suffix in the hostname")
-                self.stdout.write("3. Network configuration issues in the Render environment")
+                self.stdout.write("2. VPC or security group configuration issues")
+                self.stdout.write("3. AWS RDS endpoint might be incorrect")
                 
-                # Check if DATABASE_URL is present and well-formed
-                db_url = os.getenv('DATABASE_URL', '')
-                if db_url:
-                    self.stdout.write(self.style.NOTICE("\nChecking DATABASE_URL format:"))
-                    if db_url.startswith('postgres://') or db_url.startswith('postgresql://'):
-                        self.stdout.write(self.style.SUCCESS("✓ DATABASE_URL has correct protocol prefix"))
+                # Check if AWS DB environment variables are present
+                aws_db_host = os.getenv('AWS_DB_HOST', '')
+                if aws_db_host:
+                    self.stdout.write(self.style.NOTICE("\nChecking AWS RDS hostname format:"))
+                    if '.rds.amazonaws.com' in aws_db_host:
+                        self.stdout.write(self.style.SUCCESS("✓ AWS RDS hostname appears to be valid"))
                     else:
-                        self.stdout.write(self.style.ERROR("✗ DATABASE_URL has incorrect protocol prefix"))
+                        self.stdout.write(self.style.WARNING("⚠ AWS RDS hostname doesn't contain '.rds.amazonaws.com'"))
                     
-                    # Basic URL format check
-                    url_parts = db_url.split('@')
-                    if len(url_parts) == 2 and len(url_parts[1].split('/')) >= 1:
-                        host_part = url_parts[1].split('/')[0]
-                        self.stdout.write(f"  Host part in URL: {host_part}")
-                        if '.' in host_part:
-                            self.stdout.write(self.style.SUCCESS("✓ Host part contains domain suffix"))
-                        else:
-                            self.stdout.write(self.style.ERROR("✗ Host part is missing domain suffix"))
             elif '.' not in host:
                 self.stdout.write(self.style.WARNING(
                     "The hostname appears to be incomplete. "
@@ -97,16 +87,25 @@ class Command(BaseCommand):
                 db_name = cursor.fetchone()[0]
                 self.stdout.write(f"Connected to database: {db_name}")
                 
+                # Check SSL connection for AWS RDS
+                if os.getenv('ENVIRONMENT') == 'production':
+                    cursor.execute("SHOW ssl;")
+                    ssl_status = cursor.fetchone()[0]
+                    if ssl_status == 'on':
+                        self.stdout.write(self.style.SUCCESS("✓ SSL is enabled for this connection"))
+                    else:
+                        self.stdout.write(self.style.WARNING("⚠ SSL is not enabled for this connection"))
+                
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"✗ Connection failed: {str(e)}"))
             self.stdout.write(self.style.WARNING("\nPossible solutions:"))
             self.stdout.write("1. Check if the database server is running")
             self.stdout.write("2. Verify credentials and hostname are correct")
-            self.stdout.write("3. Check network connectivity and firewall settings")
+            self.stdout.write("3. Check network connectivity and security groups/firewall settings")
             
-            if os.getenv('ENVIRONMENT') == 'render':
-                self.stdout.write("4. Check if the Render database service is active")
-                self.stdout.write("5. Verify the database URL is correctly set in the Render dashboard")
-                self.stdout.write("6. Try redeploying the application")
+            if os.getenv('ENVIRONMENT') == 'production':
+                self.stdout.write("4. Check if the AWS RDS instance is active and publicly accessible")
+                self.stdout.write("5. Verify security groups allow access from your application")
+                self.stdout.write("6. Check if the database endpoint URL is correct")
             else:
-                self.stdout.write(f"4. Set ENVIRONMENT=render if you're running on Render.com")
+                self.stdout.write(f"4. Set ENVIRONMENT=production if you're running in production")
