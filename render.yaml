@@ -9,7 +9,10 @@ services:
     name: bingo-app
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn core.wsgi:application
+    startCommand: >
+      python manage.py check_db_connection &&
+      python manage.py migrate &&
+      gunicorn core.wsgi:application
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -21,3 +24,28 @@ services:
         value: 3.12.3
       - key: WEB_CONCURRENCY
         value: 4
+      - key: ENVIRONMENT
+        value: render
+      - key: DEBUG
+        value: false
+      # Add explicit database connection parameters as fallback
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: bingo_db
+          property: host
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: bingo_db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: bingo_db
+          property: password
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: bingo_db
+          property: database
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: bingo_db
+          property: port

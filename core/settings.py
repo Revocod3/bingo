@@ -127,16 +127,33 @@ DATABASE_RETRY_ATTEMPTS = 3
 DATABASE_RETRY_DELAY = 1  # seconds
 DATABASE_TIMEOUT = 20  # seconds
 
-if ENVIRONMENT == 'render':
-    # Render PostgreSQL database configuration with complete hostname
+# First check for direct DATABASE_URL environment variable (highest priority)
+database_url = os.getenv('DATABASE_URL')
+if database_url:
+    DATABASES = {
+        'default': dj_database_url.parse(database_url)
+    }
+    # Ensure we have proper connection settings
+    DATABASES['default']['CONN_MAX_AGE'] = 60
+    DATABASES['default']['OPTIONS'] = {
+        'connect_timeout': DATABASE_TIMEOUT,
+        'keepalives': 1,
+        'keepalives_idle': 30,
+        'keepalives_interval': 10,
+        'keepalives_count': 5,
+    }
+    # Log the database host for debugging
+    print(f"Using database URL with host: {DATABASES['default'].get('HOST', 'unknown')}")
+elif ENVIRONMENT == 'render':
+    # Render PostgreSQL database configuration
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'b1ngo_db_jdgd',
-            'USER': 'b1ngo_db_jdgd_user',
-            'PASSWORD': 'NOMENVGSehvKA120U1V4K6qMDFKRGjzz',
-            'HOST': 'dpg-cv8ve57noe9s739d1so0-a.oregon-postgres.render.com',  # Complete hostname
-            'PORT': '5432',
+            'NAME': os.getenv('POSTGRES_DB', 'b1ngo_db_jdgd'),
+            'USER': os.getenv('POSTGRES_USER', 'b1ngo_db_jdgd_user'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'NOMENVGSehvKA120U1V4K6qMDFKRGjzz'),
+            'HOST': os.getenv('POSTGRES_HOST', 'dpg-cv8ve57noe9s739d1so0-a.oregon-postgres.render.com'),
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
             'CONN_MAX_AGE': 60,  # Keep connections alive for 60 seconds
             'OPTIONS': {
                 'connect_timeout': DATABASE_TIMEOUT,  # Connection timeout in seconds
@@ -159,12 +176,6 @@ else:
             'PORT': '5432',
         }
     }
-
-# Override with DATABASE_URL if available (highest priority)
-database_url = os.getenv('DATABASE_URL')
-if database_url:
-    DATABASES['default'] = dj_database_url.parse(database_url)
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -328,3 +339,12 @@ SWAGGER_SETTINGS = {
     'DEFAULT_MODEL_RENDERING': 'model',
     'DOC_EXPANSION': 'list',
 }
+
+# Add Render.com to allowed hosts explicitly
+if ENVIRONMENT == 'render':
+    ALLOWED_HOSTS.extend(['.onrender.com'])
+    # Also allow CORS from Render and Vercel domains
+    CORS_ALLOWED_ORIGINS.extend([
+        "https://bingo-frontend-three.vercel.app",
+        "https://bingo-app.onrender.com",
+    ])

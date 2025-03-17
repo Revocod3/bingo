@@ -29,32 +29,47 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ('email', 'password', 'first_name', 'last_name')
     
     def create(self, validated_data):
-        # Generate a 6-digit verification code
-        verification_code = ''.join(random.choices(string.digits, k=6))
-        
-        user = User.objects.create_user(
-            email=validated_data['email'],
-            password=validated_data['password'],
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', ''),
-            verification_code=verification_code,
-            verification_code_created_at=timezone.now(),
-            is_email_verified=settings.BYPASS_EMAIL_VERIFICATION
-        )
-        
-        # Create EmailAddress record for django-allauth
-        email_address = EmailAddress.objects.create(
-            user=user,
-            email=user.email,
-            primary=True,
-            verified=settings.BYPASS_EMAIL_VERIFICATION
-        )
-        
-        # Only send verification email if bypass is not enabled
-        if not settings.BYPASS_EMAIL_VERIFICATION:
-            self._send_verification_email(user, verification_code)
-        
-        return user
+        try:
+            # Generate a 6-digit verification code
+            verification_code = ''.join(random.choices(string.digits, k=6))
+            
+            user = User.objects.create_user(
+                email=validated_data['email'],
+                password=validated_data['password'],
+                first_name=validated_data.get('first_name', ''),
+                last_name=validated_data.get('last_name', ''),
+                verification_code=verification_code,
+                verification_code_created_at=timezone.now(),
+                is_email_verified=settings.BYPASS_EMAIL_VERIFICATION
+            )
+            
+            # Create EmailAddress record for django-allauth
+            email_address = EmailAddress.objects.create(
+                user=user,
+                email=user.email,
+                primary=True,
+                verified=settings.BYPASS_EMAIL_VERIFICATION
+            )
+            
+            # Only send verification email if bypass is not enabled
+            if not settings.BYPASS_EMAIL_VERIFICATION:
+                self._send_verification_email(user, verification_code)
+            
+            return user
+        except OperationalError as e:
+            # Add more specific error message for database connection issues
+            err_msg = str(e)
+            if "could not translate host name" in err_msg:
+                logger.error(f"Database hostname resolution failed: {err_msg}")
+                raise serializers.ValidationError(
+                    "We're experiencing temporary database connectivity issues. Please try again in a few minutes."
+                )
+            else:
+                logger.error(f"Database operational error: {err_msg}")
+                raise serializers.ValidationError("Database connection error. Please try again later.")
+        except Exception as e:
+            logger.error(f"Unexpected error during user registration: {str(e)}")
+            raise
     
     def _send_verification_email(self, user, code):
         subject = 'Verify your Bingo account'
