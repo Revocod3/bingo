@@ -32,7 +32,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-clave-local')
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'local')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = ENVIRONMENT == 'local'
+DEBUG = True  # Only temporarily to see error details!
 
 ALLOWED_HOSTS = ['*']
 
@@ -84,7 +84,7 @@ REST_FRAMEWORK = {
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # This must come before CommonMiddleware
-    'core.cors_middleware.CorsDebugMiddleware',  # Add our debug middleware
+    # 'core.cors_middleware.CorsDebugMiddleware',  # Comment this out - it may be interfering
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Moved to after SecurityMiddleware
     'core.middleware.DatabaseConnectionMiddleware',  # Add this for database error handling
@@ -300,21 +300,20 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 
-# Improved CORS configuration
-CORS_ALLOW_ALL_ORIGINS = False  # Don't allow all origins in production
+# Clean up and consolidate CORS configuration
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # For local React app
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://bingo-frontend-three.vercel.app",  # Fixed missing comma here
+    "https://bingo-frontend-three.vercel.app",
     "https://bingo-frontend-git-main-kev2693s-projects.vercel.app",
-    "https://bingo-xtjc.onrender.com",  # Add your backend URL too
-    "https://bingo-frontend.vercel.app",  # Your Vercel frontend URL
+    "https://bingo-frontend.vercel.app",
 ]
 
-# Add preflight response settings
-CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours in seconds
-CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken', 'Authorization']
+# Add CSRF trusted origins
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
+
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -417,8 +416,8 @@ if os.getenv('RENDER', '').lower() == 'true':
     # Debug options - remove in final production
     print(f"Running on Render.com with CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
     
-    # Try more permissive CORS settings while debugging
-    CORS_ALLOW_ALL_ORIGINS = True  # Temporarily enable for debugging
+    # Don't use this in production - only temporarily for debugging:
+    CORS_ALLOW_ALL_ORIGINS = True
     
     # Update database configuration
     DATABASES = {
@@ -443,17 +442,15 @@ if os.getenv('RENDER', '').lower() == 'true':
             CORS_ALLOWED_ORIGINS.append(render_url)
             CSRF_TRUSTED_ORIGINS.append(render_url)
     
-    # Ensure API URL is in CSRF trusted origins too
-    api_url = "https://bingo-xtjc.onrender.com"
-    if api_url not in CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS.append(api_url)
+    # Ensure both API URLs are in CSRF trusted origins
+    api_urls = [
+        "https://bingo-api-94i2.onrender.com"  # Make sure this one is included too
+    ]
+    for url in api_urls:
+        if url not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(url)
+        if url not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(url)
     
-    # Explicitly add the troublesome origin
-    frontend_url = "https://bingo-frontend-three.vercel.app"
-    if frontend_url not in CORS_ALLOWED_ORIGINS:
-        CORS_ALLOWED_ORIGINS.append(frontend_url)
-    
-    # Update CSRF trusted origins as well
-    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
-    
-    print(f"CORS_ALLOWED_ORIGINS in production: {CORS_ALLOWED_ORIGINS}")
+    print(f"Final CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
+    print(f"Final CSRF_TRUSTED_ORIGINS: {CSRF_TRUSTED_ORIGINS}")
