@@ -28,8 +28,7 @@ class Command(BaseCommand):
         # Check environment variables first
         self.stdout.write('Checking environment variables...')
         required_vars = [
-            'DJANGO_SETTINGS_MODULE', 'AWS_DB_NAME', 'AWS_DB_USER', 'AWS_DB_HOST', 
-            'AWS_DB_PORT', 'AWS_DB_SSL_MODE'
+            'DJANGO_SETTINGS_MODULE', 'DATABASE_URL'
         ]
         
         missing_vars = []

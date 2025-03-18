@@ -1,0 +1,48 @@
+services:
+  # Web service
+  - type: web
+    name: bingo-api
+    env: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn core.wsgi:application
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: core.settings
+      - key: ENVIRONMENT
+        value: production
+      - key: RENDER
+        value: true
+      - key: BYPASS_EMAIL_VERIFICATION
+        value: False
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bingo-db
+          property: connectionString
+      - key: DB_SSL_MODE
+        value: require
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST
+        sync: false # Set this in the Render dashboard
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_USE_TLS
+        value: True
+      - key: EMAIL_HOST_USER
+        sync: false # Set this in the Render dashboard
+      - key: EMAIL_HOST_PASSWORD
+        sync: false # Set this in the Render dashboard
+      - key: DEFAULT_FROM_EMAIL
+        sync: false # Set this in the Render dashboard
+      - key: ALLOWED_HOST
+        sync: false # Set this in the Render dashboard
+      - key: FRONTEND_URL
+        sync: false # Set this in the Render dashboard
+
+  # Database service
+  - type: postgresql
+    name: bingo-db
+    plan: free # You can upgrade this as needed
+    ipAllowList: [] # Only allow internal connections

@@ -141,31 +141,10 @@ if database_url:
         'keepalives_idle': 30,
         'keepalives_interval': 10,
         'keepalives_count': 5,
-        'sslmode': os.getenv('DB_SSL_MODE', 'prefer'),  # AWS RDS supports SSL
+        'sslmode': os.getenv('DB_SSL_MODE', 'prefer'),
     }
     # Log the database host for debugging
     print(f"Using database URL with host: {DATABASES['default'].get('HOST', 'unknown')}")
-elif ENVIRONMENT == 'production':
-    # AWS RDS PostgreSQL configuration
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('AWS_DB_NAME', ''),
-            'USER': os.getenv('AWS_DB_USER', ''),
-            'PASSWORD': os.getenv('AWS_DB_PASSWORD', ''),
-            'HOST': os.getenv('AWS_DB_HOST', ''),
-            'PORT': os.getenv('AWS_DB_PORT', '5432'),
-            'CONN_MAX_AGE': 60,  # Keep connections alive for 60 seconds
-            'OPTIONS': {
-                'connect_timeout': DATABASE_TIMEOUT,  # Connection timeout in seconds
-                'keepalives': 1,  # Enable TCP keepalives
-                'keepalives_idle': 30,  # Seconds before sending keepalive
-                'keepalives_interval': 10,  # Seconds between keepalives
-                'keepalives_count': 5,  # Number of failed keepalives before dropping connection
-                'sslmode': os.getenv('AWS_DB_SSL_MODE', 'require'),  # Require SSL by default for AWS RDS
-            },
-        }
-    }
 else:
     # Local development database configuration
     DATABASES = {
@@ -215,7 +194,12 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Use WhiteNoise for static files in production, different storage for Render deployment
+if ENVIRONMENT == 'production':
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+else:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -342,14 +326,31 @@ SWAGGER_SETTINGS = {
     'DOC_EXPANSION': 'list',
 }
 
-# Add AWS EB to allowed hosts explicitly
+# Production settings
 if ENVIRONMENT == 'production':
-    ALLOWED_HOSTS.extend([
-        '.elasticbeanstalk.com',
-        '.amazonaws.com', 
-        os.getenv('ALLOWED_HOST', '*')
-    ])
     # Allow CORS from production domains
-    CORS_ALLOWED_ORIGINS.extend([
-        os.getenv('FRONTEND_URL', 'https://bingo-app.example.com'),
-    ])
+    CORS_ALLOWED_ORIGINS.append(
+        os.getenv('FRONTEND_URL', 'https://bingo-app.example.com')
+    )
+
+# Update for Render.com deployment
+if os.getenv('RENDER', '') == 'true':
+    # Update database configuration
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.getenv('DATABASE_URL', ''),
+            conn_max_age=600
+        )
+    }
+    
+    # Security settings for Render
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # Add Render URL to allowed hosts
+    render_hostname = os.getenv('RENDER_EXTERNAL_HOSTNAME', '')
+    if render_hostname:
+        ALLOWED_HOSTS.append(render_hostname)
+        CORS_ALLOWED_ORIGINS.append(f"https://{render_hostname}")
