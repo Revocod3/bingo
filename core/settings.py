@@ -64,7 +64,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'dj_rest_auth',
     'dj_rest_auth.registration',
-    'corsheaders',
+    'corsheaders',  # Add this line
     
     # Project apps
     'users',
@@ -83,7 +83,7 @@ REST_FRAMEWORK = {
 }
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Keep this first for CORS
+    'corsheaders.middleware.CorsMiddleware',  # This must come before CommonMiddleware
     'core.cors_middleware.CorsDebugMiddleware',  # Add our debug middleware
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Moved to after SecurityMiddleware
@@ -301,14 +301,15 @@ SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 
 # Improved CORS configuration
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only for local development
+CORS_ALLOW_ALL_ORIGINS = False  # Don't allow all origins in production
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # For local React app
     "http://127.0.0.1:3000",
     "https://bingo-frontend-three.vercel.app",  # Fixed missing comma here
     "https://bingo-frontend-git-main-kev2693s-projects.vercel.app",
-    "https://bingo-xtjc.onrender.com"  # Add your backend URL too
+    "https://bingo-xtjc.onrender.com",  # Add your backend URL too
+    "https://bingo-frontend.vercel.app",  # Your Vercel frontend URL
 ]
 
 # Add preflight response settings
