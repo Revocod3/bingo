@@ -7,3 +7,9 @@ venv/
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+
+# Static files
+/staticfiles/
+
+# But keep the static directory
+!/static/.gitkeep
