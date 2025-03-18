@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',  # Required for allauth
     
     # Swagger
-    'drf_yasg',
+    'drf_spectacular',
     
     # REST Framework
     'rest_framework',
@@ -79,6 +79,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'BINGO API',
+    'VERSION': '1.0.0',
 }
 
 MIDDLEWARE = [
