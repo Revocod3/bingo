@@ -299,14 +299,20 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 
-CORS_ALLOW_ALL_ORIGINS = DEBUG
+# Improved CORS configuration
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only for local development
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # For local React app
     "http://127.0.0.1:3000",
+    "https://bingo-frontend-three.vercel.app/"
+    "https://bingo-frontend-git-main-kev2693s-projects.vercel.app/"
 ]
 
+# Enhanced Spectacular settings for better API documentation
 SPECTACULAR_SETTINGS = {
     'TITLE': 'BINGO API',
+    'DESCRIPTION': 'API for the Bingo application with user authentication and game management',
     'VERSION': '1.0.0',
     'SECURITY': [{'Bearer': []}],
     'SECURITY_DEFINITIONS': {
@@ -321,15 +327,55 @@ SPECTACULAR_SETTINGS = {
     'SERVE_URLCONF': 'core.urls',
     'SWAGGER_UI_SETTINGS': {
         'persistAuthorization': True,
+        'displayOperationId': True,
+        'filter': True,
     },
     'SCHEMA_PATH_PREFIX': '/api/',
+    'COMPONENT_SPLIT_REQUEST': True,
+    'COMPONENT_SPLIT_RESPONSE': True,
+    'ENUM_NAME_OVERRIDES': {
+        'ValidationErrorEnum': 'rest_framework.serializers.ValidationError',
+    },
+    'PREPROCESSING_HOOKS': [],
+    'POSTPROCESSING_HOOKS': [],
 }
+
 # Production settings
 if ENVIRONMENT == 'production':
-    # Allow CORS from production domains
-    CORS_ALLOWED_ORIGINS.append(
-        os.getenv('FRONTEND_URL', 'https://bingo-app.example.com')
-    )
+    # Allow CORS from production domains - support multiple domains
+    frontend_url = os.getenv('FRONTEND_URL', 'https://bingo-app.example.com')
+    # Split multiple URLs if provided
+    if ',' in frontend_url:
+        for domain in frontend_url.split(','):
+            domain = domain.strip()
+            CORS_ALLOWED_ORIGINS.append(domain)
+    else:
+        CORS_ALLOWED_ORIGINS.append(frontend_url)
+    
+    # Also add CSRF trusted origins for the same domains
+    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
+    
+    # Additional CORS headers for production
+    CORS_ALLOW_METHODS = [
+        'DELETE',
+        'GET',
+        'OPTIONS',
+        'PATCH',
+        'POST',
+        'PUT',
+    ]
+    
+    CORS_ALLOW_HEADERS = [
+        'accept',
+        'accept-encoding',
+        'authorization',
+        'content-type',
+        'dnt',
+        'origin',
+        'user-agent',
+        'x-csrftoken',
+        'x-requested-with',
+    ]
 
 # Update for Render.com deployment
 if os.getenv('RENDER', '') == 'true':
