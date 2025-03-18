@@ -29,6 +29,9 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
+# Import for health check
+from bingo.health import health_check
+
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'events', EventViewSet)
@@ -98,6 +101,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/auth/', include(auth_urlpatterns)),
+    path('health/', health_check, name='health_check'),
     
     # API Documentation URLs with exception handling
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
