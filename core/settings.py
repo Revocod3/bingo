@@ -82,10 +82,10 @@ REST_FRAMEWORK = {
 }
 
 MIDDLEWARE = [
+'corsheaders.middleware.CorsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Make sure this is right after corsheaders
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # Add this line
-    'core.middleware.DatabaseConnectionMiddleware',  # Add this for database error handling
+        'core.middleware.DatabaseConnectionMiddleware',  # Add this for database error handling
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
