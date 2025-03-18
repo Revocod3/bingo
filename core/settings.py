@@ -305,9 +305,13 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # For local React app
     "http://127.0.0.1:3000",
-    "https://bingo-frontend-three.vercel.app/"
-    "https://bingo-frontend-git-main-kev2693s-projects.vercel.app/"
+    "https://bingo-frontend-three.vercel.app",  # Fixed missing comma here
+    "https://bingo-frontend-git-main-kev2693s-projects.vercel.app"
 ]
+
+# Add preflight response settings
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours in seconds
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']  
 
 # Enhanced Spectacular settings for better API documentation
 SPECTACULAR_SETTINGS = {
@@ -348,9 +352,14 @@ if ENVIRONMENT == 'production':
     if ',' in frontend_url:
         for domain in frontend_url.split(','):
             domain = domain.strip()
-            CORS_ALLOWED_ORIGINS.append(domain)
-    else:
+            if domain and domain not in CORS_ALLOWED_ORIGINS:
+                CORS_ALLOWED_ORIGINS.append(domain)
+    elif frontend_url and frontend_url not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(frontend_url)
+    
+    # Explicitly add Vercel frontend URL if not already added
+    if "https://bingo-frontend-three.vercel.app" not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append("https://bingo-frontend-three.vercel.app")
     
     # Also add CSRF trusted origins for the same domains
     CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
@@ -397,4 +406,14 @@ if os.getenv('RENDER', '') == 'true':
     render_hostname = os.getenv('RENDER_EXTERNAL_HOSTNAME', '')
     if render_hostname:
         ALLOWED_HOSTS.append(render_hostname)
-        CORS_ALLOWED_ORIGINS.append(f"https://{render_hostname}")
+        render_url = f"https://{render_hostname}"
+        if render_url not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(render_url)
+            CSRF_TRUSTED_ORIGINS.append(render_url)
+    
+    # Ensure API URL is in CSRF trusted origins too
+    api_url = "https://bingo-xtjc.onrender.com"
+    if api_url not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(api_url)
+    
+    print(f"CORS_ALLOWED_ORIGINS in production: {CORS_ALLOWED_ORIGINS}")
