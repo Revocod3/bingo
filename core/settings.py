@@ -317,10 +317,12 @@ SPECTACULAR_SETTINGS = {
             'description': 'Enter your JWT token in the format: `Bearer <token>`'
         }
     },
-    'SERVE_INCLUDE_SCHEMA': False,  # Don't include schema itself in the docs
+    'SERVE_INCLUDE_SCHEMA': True,
+    'SERVE_URLCONF': 'core.urls',
     'SWAGGER_UI_SETTINGS': {
         'persistAuthorization': True,
     },
+    'SCHEMA_PATH_PREFIX': '/api/',
 }
 # Production settings
 if ENVIRONMENT == 'production':
