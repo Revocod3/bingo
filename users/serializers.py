@@ -1,3 +1,4 @@
+from django.db import OperationalError
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.conf import settings

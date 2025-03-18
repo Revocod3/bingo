@@ -3,11 +3,11 @@ services:
   - type: web
     name: bingo-api
     env: python
-    buildCommand: chmod +x ./build.sh && ./build.sh
-    startCommand: gunicorn core.wsgi:application
+    buildCommand: ./render_build.sh
+    startCommand: gunicorn bingo.wsgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE
-        value: core.settings
+        value: bingo.settings
       - key: ENVIRONMENT
         value: production
       - key: RENDER
@@ -42,6 +42,8 @@ services:
         sync: false # Set this in the Render dashboard
       - key: CORS_ALLOW_ALL_ORIGINS
         value: true
+      - key: PYTHON_VERSION
+        value: 3.11.11
     headers:
       - path: /*
         name: Access-Control-Allow-Origin
@@ -58,3 +60,8 @@ services:
     name: bingo-db
     plan: free # You can upgrade this as needed
     ipAllowList: [] # Only allow internal connections
+
+databases:
+  - name: bingo-db
+    databaseName: bingo
+    user: bingo
