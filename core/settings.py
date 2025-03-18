@@ -195,16 +195,8 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Add STATICFILES_DIRS to help Django locate static files during development
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
 
-# Use WhiteNoise for static files in production, different storage for Render deployment
-if ENVIRONMENT == 'production':
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-else:
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
