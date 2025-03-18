@@ -1,1 +1,1 @@
-web: gunicorn core.wsgi:application --workers 3 --timeout 60
+web: gunicorn --workers=2 --threads=2 --timeout=120 --bind=:8000 core.wsgi:application
