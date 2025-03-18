@@ -19,3 +19,4 @@ cryptography==44.0.2
 pycparser==2.22
 drf-yasg==1.21.7
 psutil==5.9.5
+drf-spectacular==0.17.0
