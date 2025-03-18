@@ -82,11 +82,6 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'BINGO API',
-    'VERSION': '1.0.0',
-}
-
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -310,8 +305,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-# Add drf-yasg settings for properly showing JWT auth
-SWAGGER_SETTINGS = {
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'BINGO API',
+    'VERSION': '1.0.0',
+    'SECURITY': [{'Bearer': []}],
     'SECURITY_DEFINITIONS': {
         'Bearer': {
             'type': 'apiKey',
@@ -320,15 +317,11 @@ SWAGGER_SETTINGS = {
             'description': 'Enter your JWT token in the format: `Bearer <token>`'
         }
     },
-    'USE_SESSION_AUTH': False,
-    'JSON_EDITOR': True,
-    'PERSIST_AUTH': True,
-    'REFETCH_SCHEMA_WITH_AUTH': True,
-    'REFETCH_SCHEMA_ON_LOGOUT': True,
-    'DEFAULT_MODEL_RENDERING': 'model',
-    'DOC_EXPANSION': 'list',
+    'SERVE_INCLUDE_SCHEMA': False,  # Don't include schema itself in the docs
+    'SWAGGER_UI_SETTINGS': {
+        'persistAuthorization': True,
+    },
 }
-
 # Production settings
 if ENVIRONMENT == 'production':
     # Allow CORS from production domains

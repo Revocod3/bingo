@@ -25,8 +25,7 @@ from bingo.views import EventViewSet, BingoCardViewSet, NumberViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 # Import for API documentation
-from rest_framework import permissions
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 
 # Import for health check
@@ -69,7 +68,9 @@ urlpatterns = [
     path('health/', health_check, name='health_check'),
     
     # API Documentation URLs with exception handling
-    path('schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),
-
+   
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    # Optional UI:
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
