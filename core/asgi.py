@@ -15,13 +15,44 @@ django.setup()
 # Only import after Django is set up
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
+from channels.security.websocket import AllowedHostsOriginValidator
+from channels.generic.websocket import WebsocketConsumer
+# Import LifespanHandler for lifespan protocol support
+from channels.layers import get_channel_layer
 import bingo.routing
+
+# Simple no-op handler for lifespan protocol
+class LifespanApp:
+    def __init__(self):
+        self.startup_complete = False
+        self.shutdown_complete = False
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "lifespan":
+            return
+            
+        while True:
+            message = await receive()
+            
+            if message["type"] == "lifespan.startup":
+                # Do startup logic here
+                self.startup_complete = True
+                await send({"type": "lifespan.startup.complete"})
+                
+            elif message["type"] == "lifespan.shutdown":
+                # Do shutdown logic here
+                self.shutdown_complete = True
+                await send({"type": "lifespan.shutdown.complete"})
+                return
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
-    "websocket": AuthMiddlewareStack(
-        URLRouter(
-            bingo.routing.websocket_urlpatterns
+    "websocket": AllowedHostsOriginValidator(
+        AuthMiddlewareStack(
+            URLRouter(
+                bingo.routing.websocket_urlpatterns
+            )
         )
     ),
+    "lifespan": LifespanApp(),
 })
