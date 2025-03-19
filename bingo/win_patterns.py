@@ -2,157 +2,81 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def check_win_pattern(card_numbers, called_numbers, pattern_type='bingo'):
-    """
-    Check if the specified pattern is completed with called numbers
+# Common bingo patterns
+PATTERNS = {
+    # Horizontal lines
+    'row_1': [0, 1, 2, 3, 4],
+    'row_2': [5, 6, 7, 8, 9],
+    'row_3': [10, 11, 12, 13, 14],
+    'row_4': [15, 16, 17, 18, 19],
+    'row_5': [20, 21, 22, 23, 24],
     
-    Parameters:
-    - card_numbers: Dictionary with B, I, N, G, O keys containing lists of numbers
-    - called_numbers: Set of numbers that have been called
-    - pattern_type: Type of winning pattern to check
+    # Vertical lines
+    'col_1': [0, 5, 10, 15, 20],
+    'col_2': [1, 6, 11, 16, 21],
+    'col_3': [2, 7, 12, 17, 22],
+    'col_4': [3, 8, 13, 18, 23],
+    'col_5': [4, 9, 14, 19, 24],
+    
+    # Diagonals
+    'diag_1': [0, 6, 12, 18, 24],
+    'diag_2': [4, 8, 12, 16, 20],
+    
+    # Special patterns
+    'corners': [0, 4, 20, 24],
+    'center': [6, 7, 8, 11, 12, 13, 16, 17, 18],
+    
+    # Full card
+    'blackout': list(range(25)),
+    
+    # Standard bingo (default) - any row, column, or diagonal
+    'bingo': None,  # This will be checked separately
+}
+
+def check_win_pattern(card_numbers, called_numbers, pattern_name='bingo'):
+    """
+    Check if a card has won with the specified pattern.
+    
+    Args:
+        card_numbers: Dictionary of card numbers (or can be a list of 25 numbers)
+        called_numbers: Set of called numbers
+        pattern_name: Name of the pattern to check (default is 'bingo' - any line)
     
     Returns:
-    - Boolean indicating whether the pattern is completed
+        bool: True if the pattern is completed, False otherwise
     """
     try:
-        # Extract the actual numbers from the card format
-        b_numbers = card_numbers['B']
-        i_numbers = card_numbers['I']
-        n_numbers = card_numbers['N']
-        g_numbers = card_numbers['G']
-        o_numbers = card_numbers['O']
-        
-        # The 5x5 grid representation of the card
-        grid = [
-            b_numbers,
-            i_numbers,
-            n_numbers,
-            g_numbers,
-            o_numbers
-        ]
-        
-        # Free space in the center
-        free_space_col = card_numbers.get('free_space', {}).get('column', 'N')
-        free_space_row = card_numbers.get('free_space', {}).get('row', 2)
-        
-        # Map column letter to index
-        col_to_index = {'B': 0, 'I': 1, 'N': 2, 'G': 3, 'O': 4}
-        free_space_col_idx = col_to_index.get(free_space_col, 2)
-        
-        # Regular bingo patterns
-        if pattern_type == 'bingo':
-            # Full card win (all numbers called)
-            for col_idx, col in enumerate(grid):
-                for row_idx, number in enumerate(col):
-                    # Skip the free space
-                    if col_idx == free_space_col_idx and row_idx == free_space_row:
-                        continue
-                    
-                    if number not in called_numbers:
-                        return False
-            return True
-            
-        elif pattern_type == 'row':
-            # Any horizontal line
-            for row_idx in range(5):
-                row_complete = True
-                for col_idx in range(5):
-                    # Skip the free space
-                    if col_idx == free_space_col_idx and row_idx == free_space_row:
-                        continue
-                    
-                    number = grid[col_idx][row_idx]
-                    if number not in called_numbers:
-                        row_complete = False
-                        break
-                
-                if row_complete:
-                    return True
-            return False
-            
-        elif pattern_type == 'column':
-            # Any vertical line
-            for col_idx in range(5):
-                col_complete = True
-                for row_idx in range(5):
-                    # Skip the free space
-                    if col_idx == free_space_col_idx and row_idx == free_space_row:
-                        continue
-                    
-                    number = grid[col_idx][row_idx]
-                    if number not in called_numbers:
-                        col_complete = False
-                        break
-                
-                if col_complete:
-                    return True
-            return False
-            
-        elif pattern_type == 'diagonal':
-            # Diagonal from top-left to bottom-right
-            diagonal1_complete = True
-            for i in range(5):
-                # Skip the free space
-                if i == free_space_col_idx and i == free_space_row:
-                    continue
-                
-                number = grid[i][i]
-                if number not in called_numbers:
-                    diagonal1_complete = False
-                    break
-            
-            if diagonal1_complete:
-                return True
-            
-            # Diagonal from top-right to bottom-left
-            diagonal2_complete = True
-            for i in range(5):
-                # Skip the free space
-                if i == free_space_col_idx and 4-i == free_space_row:
-                    continue
-                
-                number = grid[i][4-i]
-                if number not in called_numbers:
-                    diagonal2_complete = False
-                    break
-            
-            return diagonal2_complete
-        
-        # Advanced patterns can be added here
-        elif pattern_type == 'corners':
-            # Four corners
-            corners = [
-                grid[0][0],  # Top-left
-                grid[0][4],  # Bottom-left
-                grid[4][0],  # Top-right
-                grid[4][4]   # Bottom-right
-            ]
-            
-            for number in corners:
-                if number not in called_numbers:
-                    return False
-            return True
-            
-        elif pattern_type == 'postage_stamp':
-            # 2x2 in any corner
-            # Check top-left
-            if all(grid[col_idx][row_idx] in called_numbers for col_idx in [0, 1] for row_idx in [0, 1]):
-                return True
-            # Check top-right
-            if all(grid[col_idx][row_idx] in called_numbers for col_idx in [3, 4] for row_idx in [0, 1]):
-                return True
-            # Check bottom-left
-            if all(grid[col_idx][row_idx] in called_numbers for col_idx in [0, 1] for row_idx in [3, 4]):
-                return True
-            # Check bottom-right
-            if all(grid[col_idx][row_idx] in called_numbers for col_idx in [3, 4] for row_idx in [3, 4]):
-                return True
-            return False
-            
+        # Convert card numbers to a list if it's a dictionary
+        numbers_list = []
+        if isinstance(card_numbers, dict):
+            # Sort by position or key to ensure correct order
+            for i in range(25):
+                pos = str(i)
+                if pos in card_numbers:
+                    numbers_list.append(card_numbers[pos])
+                elif i in card_numbers:
+                    numbers_list.append(card_numbers[i])
+        elif isinstance(card_numbers, list):
+            numbers_list = card_numbers
         else:
-            logger.warning(f"Unknown pattern type: {pattern_type}")
+            logger.error(f"Unsupported card_numbers format: {type(card_numbers)}")
             return False
-            
+        
+        # Get the pattern definition
+        pattern = PATTERNS.get(pattern_name.lower())
+        
+        # Special case for "bingo" which can be any row, column, or diagonal
+        if pattern_name.lower() == 'bingo' or pattern is None:
+            # Check each row, column and diagonal
+            for p_name, p_positions in PATTERNS.items():
+                if p_name.startswith('row_') or p_name.startswith('col_') or p_name.startswith('diag_'):
+                    if all(numbers_list[pos] in called_numbers for pos in p_positions):
+                        logger.info(f"Win detected with pattern {p_name}")
+                        return True
+            return False
+        
+        # Check if all numbers in the pattern are called
+        return all(numbers_list[pos] in called_numbers for pos in pattern)
     except Exception as e:
-        logger.error(f"Error checking win pattern: {str(e)}", exc_info=True)
+        logger.error(f"Error checking win pattern: {str(e)}")
         return False

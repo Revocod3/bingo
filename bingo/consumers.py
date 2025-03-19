@@ -5,24 +5,43 @@ from channels.db import database_sync_to_async
 from django.db import transaction
 from .models import Event, BingoCard, Number
 from .win_patterns import check_win_pattern
+from rest_framework_simplejwt.tokens import AccessToken
+from django.contrib.auth import get_user_model
+from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 class BingoConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.user = self.scope["user"]
         self.event_id = self.scope['url_route']['kwargs']['event_id']
-        
-        # Create a unique group name for this event
         self.room_group_name = f"bingo_event_{self.event_id}"
         
-        # Join the room group
+        # Authenticate the user from the token
+        token = self.scope['query_string'].decode().split('=')[1] if 'query_string' in self.scope else None
+        
+        if token:
+            try:
+                # Verify the token and get the user
+                token_obj = AccessToken(token)
+                user_id = token_obj['user_id']
+                self.user = await self.get_user_from_id(user_id)
+                self.scope['user'] = self.user
+            except (InvalidTokenError, ExpiredSignatureError) as e:
+                logger.error(f"Invalid token: {str(e)}")
+                self.user = None
+                await self.close(code=4001)  # Unauthorized
+                return
+        else:
+            self.user = None
+            # Allow anonymous connections for viewing only
+        
+        # Join room group
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
         
-        # Accept the connection
         await self.accept()
         
         # Send event info when they connect
@@ -34,7 +53,7 @@ class BingoConsumer(AsyncWebsocketConsumer):
             }))
         
         # If the user is authenticated, send their cards
-        if self.user.is_authenticated:
+        if self.user and self.user.is_authenticated:
             cards = await self._get_user_cards()
             await self.send(text_data=json.dumps({
                 'type': 'user_cards',
@@ -254,7 +273,7 @@ class BingoConsumer(AsyncWebsocketConsumer):
                 'id': event.id,
                 'name': event.name,
                 'prize': str(event.prize),
-                'start': event.start.isoformat(),
+                'start_date': event.start.isoformat(),  # Changed from start to start_date
                 'called_numbers': list(called_numbers.values('id', 'value', 'called_at'))
             }
         except Event.DoesNotExist:
@@ -283,8 +302,6 @@ class BingoConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def _is_event_admin(self, event_id, user_id):
         """Check if user is event admin (owner or staff)"""
-        # In a real app, you'd check if the user is admin or event owner
-        # For now, we'll consider staff users as admins
         return self.user.is_staff
     
     @database_sync_to_async
@@ -345,3 +362,10 @@ class BingoConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error verifying win: {str(e)}")
             return False, str(e)
+
+    @database_sync_to_async
+    def get_user_from_id(self, user_id):
+        try:
+            return User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return None

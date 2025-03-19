@@ -16,9 +16,8 @@ django.setup()
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from channels.security.websocket import AllowedHostsOriginValidator
-from channels.generic.websocket import WebsocketConsumer
-# Import LifespanHandler for lifespan protocol support
-from channels.layers import get_channel_layer
+# Import the TokenAuthMiddleware
+from bingo.middleware import TokenAuthMiddlewareStack
 import bingo.routing
 
 # Simple no-op handler for lifespan protocol
@@ -48,7 +47,7 @@ class LifespanApp:
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     "websocket": AllowedHostsOriginValidator(
-        AuthMiddlewareStack(
+        TokenAuthMiddlewareStack(  # Use our custom auth middleware
             URLRouter(
                 bingo.routing.websocket_urlpatterns
             )

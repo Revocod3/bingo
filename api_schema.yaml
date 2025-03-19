@@ -275,6 +275,44 @@ paths:
                   $ref: '#/components/schemas/BingoCard'
         401:
           description: Unauthorized
+  /ws/event/{eventId}/:
+    get:
+      summary: WebSocket endpoint for bingo game events
+      description: |
+        Connect to this endpoint with a WebSocket client.
+        Include the JWT token as a query parameter: `?token=your_jwt_token`
+        
+        ### WebSocket Messages:
+        
+        #### Client to Server:
+        - `JOIN_GAME`: Join a specific bingo event room
+        - `CALL_NUMBER`: Call a bingo number (admin only)
+        - `CLAIM_WIN`: Claim a winning card
+        - `CHAT_MESSAGE`: Send a chat message to the room
+        
+        #### Server to Client:
+        - `event_info`: Event details when connected
+        - `user_cards`: User's cards for this event
+        - `number_called`: A new number was called
+        - `winner_announcement`: Someone won the game
+        - `player_joined`: A new player joined the game
+        - `chat_message`: Chat message from a player
+        - `error`: Error message from server
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the bingo event to connect to
+        - name: token
+          in: query
+          required: false
+          schema:
+            type: string
+          description: JWT access token for authentication
+      tags:
+        - WebSockets
 components:
   schemas:
     User:
