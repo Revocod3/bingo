@@ -1,4 +1,4 @@
 ALLOWED_HOSTS: .onrender.com,bingo-frontend.vercel.app,bingo-frontend-three.vercel.app,bingo-frontend-git-main-kev2693s-projects.vercel.app
-CORS_ALLOWED_ORIGINS: https://bingo-frontend.vercel.app,https://bingo-frontend-three.vercel.app,https://bingo-frontend-git-main-kev2693s-projects.vercel.app
+CORS_ALLOWED_ORIGINS: https://bingo-frontend.vercel.app,https://bingo-frontend-git-main-kev2693s-projects.vercel.app
 CORS_ALLOW_ALL_ORIGINS: True
-DEBUG: False
+DEBUG: True

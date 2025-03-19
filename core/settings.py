@@ -312,9 +312,10 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://bingo-frontend-three.vercel.app",
     "https://bingo-frontend-git-main-kev2693s-projects.vercel.app",
     "https://bingo-frontend.vercel.app",
+    "https://bingo-api-94i2.onrender.com",
+
 ]
 
 # Add CSRF trusted origins
