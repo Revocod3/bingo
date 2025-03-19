@@ -44,6 +44,10 @@ services:
         value: true
       - key: PYTHON_VERSION
         value: 3.12.3
+      - key: DEBUG_ENDPOINT
+        value: true
+      - key: DEBUG
+        value: true  # Temporarily enable Django DEBUG for more detailed error messages
     headers:
       - path: /*
         name: Access-Control-Allow-Origin
@@ -63,5 +67,5 @@ services:
 
 databases:
   - name: bingo-db
-    databaseName: bingo
-    user: bingo
+    databaseName: bingo_db_ea2f
+    user: bingo_db_ea2f_user
