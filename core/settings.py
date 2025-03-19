@@ -41,6 +41,7 @@ import dj_database_url
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -84,18 +85,17 @@ REST_FRAMEWORK = {
 }
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # This must come before CommonMiddleware
-    # 'core.cors_middleware.CorsDebugMiddleware',  # Comment this out - it may be interfering
+    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Moved to after SecurityMiddleware
-    'core.middleware.DatabaseConnectionMiddleware',  # Add this for database error handling
+    'whitenoise.middleware.WhiteNoiseMiddleware',  
+    'core.middleware.DatabaseConnectionMiddleware', 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware',  # Add this line
+    'allauth.account.middleware.AccountMiddleware', 
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -103,7 +103,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],  # Add templates directory
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],  
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -262,7 +262,7 @@ SOCIALACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter'
 
 # Email settings - modify with your actual SMTP settings
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')  # Changed to a valid default
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')  
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
@@ -306,7 +306,7 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 
-# Clean up and consolidate CORS configuration
+
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
@@ -350,7 +350,7 @@ CORS_ALLOW_HEADERS = [
     'pragma',
 ]
 
-# Enhanced Spectacular settings for better API documentation
+# Spectacular settings for API documentation
 SPECTACULAR_SETTINGS = {
     'TITLE': 'BINGO API',
     'DESCRIPTION': 'API for the Bingo application with user authentication and game management',
@@ -379,6 +379,17 @@ SPECTACULAR_SETTINGS = {
     },
     'PREPROCESSING_HOOKS': [],
     'POSTPROCESSING_HOOKS': [],
+}
+
+# Channels configuration
+ASGI_APPLICATION = 'core.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [os.environ.get('REDIS_URL', 'redis://localhost:6379/0')],
+        },
+    },
 }
 
 # Production settings
@@ -468,6 +479,18 @@ if os.getenv('RENDER', '').lower() == 'true':
             CSRF_TRUSTED_ORIGINS.append(url)
         if url not in CORS_ALLOWED_ORIGINS:
             CORS_ALLOWED_ORIGINS.append(url)
+    
+    # Configure Redis for Render
+    REDIS_URL = os.getenv('REDIS_URL', '')
+    if REDIS_URL:
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels_redis.core.RedisChannelLayer',
+                'CONFIG': {
+                    "hosts": [REDIS_URL],
+                },
+            },
+        }
     
     print(f"Final CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
     print(f"Final CSRF_TRUSTED_ORIGINS: {CSRF_TRUSTED_ORIGINS}")

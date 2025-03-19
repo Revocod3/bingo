@@ -21,7 +21,10 @@ from users.views import (
     UserViewSet, RegisterView, VerifyEmailView, ResendVerificationView,
     FacebookLogin, GoogleLogin
 )
-from bingo.views import EventViewSet, BingoCardViewSet, NumberViewSet
+from bingo.views import (
+    EventViewSet, BingoCardViewSet, NumberViewSet, 
+    TestCoinBalanceViewSet, CardPurchaseViewSet
+)
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 # Import for API documentation
@@ -36,6 +39,8 @@ router.register(r'users', UserViewSet)
 router.register(r'events', EventViewSet)
 router.register(r'cards', BingoCardViewSet)
 router.register(r'numbers', NumberViewSet)
+router.register(r'test-coins', TestCoinBalanceViewSet)
+router.register(r'card-purchases', CardPurchaseViewSet)
 
 
 auth_urlpatterns = [

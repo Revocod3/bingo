@@ -4,7 +4,7 @@ services:
     name: bingo-api
     env: python
     buildCommand: ./render_build.sh
-    startCommand: python manage.py migrate && gunicorn core.wsgi:application
+    startCommand: python manage.py migrations && gunicorn -k uvicorn.workers.UvicornWorker core.asgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: core.settings
@@ -48,6 +48,11 @@ services:
         value: true
       - key: DEBUG
         value: true  # Temporarily enable Django DEBUG for more detailed error messages
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: bingo-redis
+          property: connectionString
     headers:
       - path: /*
         name: Access-Control-Allow-Origin
@@ -58,6 +63,12 @@ services:
       - path: /*
         name: Access-Control-Allow-Headers
         value: "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+
+  # Redis service for WebSockets and caching
+  - type: redis
+    name: bingo-redis
+    ipAllowList: [] # Only allow internal connections
+    plan: free
 
   # Database service
   - type: postgresql
