@@ -1,8 +1,9 @@
 import logging
 from django.http import JsonResponse
-from django.db.utils import OperationalError
+from django.db.utils import OperationalError, ProgrammingError
 from .db_utils import ensure_database_connection
 import os
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,26 @@ class DatabaseConnectionMiddleware:
                 'error': 'Database connection error',
                 'message': 'The server is experiencing database issues. Please try again later.'
             }, status=503)  # 503 Service Unavailable
+        except ProgrammingError as e:
+            # Log database schema errors (like missing tables)
+            error_msg = str(e)
+            logger.error(f"Database schema error: {error_msg}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Return detailed error for debugging
+            if os.environ.get('DEBUG', 'False') == 'True':
+                return JsonResponse({
+                    'error': 'Database schema error',
+                    'message': error_msg,
+                    'traceback': traceback.format_exc()
+                }, status=500)
+            else:
+                return JsonResponse({
+                    'error': 'Database schema error',
+                    'message': 'The application database schema is not correctly set up.'
+                }, status=500)
         except Exception as e:
             # Let other exceptions pass through to be handled by Django's exception handling
             logger.error(f"Unexpected error in DatabaseConnectionMiddleware: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             raise

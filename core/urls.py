@@ -27,9 +27,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 # Import for API documentation
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
-
 # Import for health check
 from bingo.health import health_check
+from bingo.debug import debug_info
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -66,6 +66,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/auth/', include(auth_urlpatterns)),
     path('health/', health_check, name='health_check'),
+    path('debug-info/', debug_info, name='debug_info'),
     
     # API Documentation URLs with exception handling
    
