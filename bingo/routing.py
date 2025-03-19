@@ -1,7 +1,7 @@
-from django.urls import path
-from . import consumers
+from django.urls import re_path
+from . import consumers  # Import consumers module
 
 websocket_urlpatterns = [
-    # WebSocket connection for a specific bingo event
-    path('ws/bingo/event/<int:event_id>/', consumers.BingoConsumer.as_asgi()),
+    # Your websocket patterns
+    # Example: re_path(r'ws/bingo/(?P<room_name>\w+)/$', consumers.BingoConsumer.as_asgi()),
 ]

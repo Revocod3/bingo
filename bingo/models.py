@@ -1,10 +1,8 @@
-from django.db import models
-from django.contrib.auth import get_user_model
-from django.db.models import F
-from django.db import transaction
+from django.db import models, transaction, F
+from django.conf import settings
 import uuid
 
-User = get_user_model()
+User = settings.AUTH_USER_MODEL
 
 class Event(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
