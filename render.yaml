@@ -4,10 +4,10 @@ services:
     name: bingo-api
     env: python
     buildCommand: ./render_build.sh
-    startCommand: gunicorn bingo.wsgi:application
+    startCommand: gunicorn core.wsgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE
-        value: bingo.settings
+        value: core.settings
       - key: ENVIRONMENT
         value: production
       - key: RENDER
@@ -43,7 +43,7 @@ services:
       - key: CORS_ALLOW_ALL_ORIGINS
         value: true
       - key: PYTHON_VERSION
-        value: 3.11.11
+        value: 3.12.3
     headers:
       - path: /*
         name: Access-Control-Allow-Origin

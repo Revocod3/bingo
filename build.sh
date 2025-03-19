@@ -12,11 +12,23 @@ pip install -r requirements.txt
 # Create static directory if it doesn't exist
 mkdir -p static
 
-# Apply database migrations
-python manage.py migrate
+# Print Django version and settings module for debugging
+echo "Django version: $(python -m django --version)"
+echo "Using settings: $DJANGO_SETTINGS_MODULE"
 
-# Collect static files with more verbosity for debugging
+# Show pending migrations before applying them
+echo "Checking for pending migrations..."
+python manage.py showmigrations
+
+# Apply database migrations with more verbosity
+echo "Applying migrations..."
+python manage.py migrate --noinput --verbosity=2
+
+# Verify migrations were applied
+echo "Verifying migrations..."
+python manage.py showmigrations | grep -v '\[ \]'
+
+# Collect static files 
 python manage.py collectstatic --noinput --verbosity=2
 
-# Additional build steps can go here
 echo "Build completed successfully!"
