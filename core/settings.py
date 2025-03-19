@@ -309,14 +309,20 @@ SOCIALACCOUNT_AUTO_SIGNUP = True
 # Clean up and consolidate CORS configuration
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
+
+# Define base URLs without trailing slashes to avoid CORS errors
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://bingo-frontend-git-main-kev2693s-projects.vercel.app",
     "https://bingo-frontend.vercel.app",
     "https://bingo-api-94i2.onrender.com",
-    "https://bingo-frontend-three.vercel.app",  # No trailing slash
+    "https://bingo-frontend-three.vercel.app",
+    # Add any new frontend URLs here
 ]
+
+# Ensure no trailing slashes in any of the URLs
+CORS_ALLOWED_ORIGINS = [url.rstrip('/') for url in CORS_ALLOWED_ORIGINS]
 
 # Add CSRF trusted origins
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
@@ -446,29 +452,22 @@ if os.getenv('RENDER', '').lower() == 'true':
         ALLOWED_HOSTS.append(render_hostname)
         render_url = f"https://{render_hostname}"
         if render_url not in CORS_ALLOWED_ORIGINS:
-            CORS_ALLOWED_ORIGINS.append(render_url)
-            CSRF_TRUSTED_ORIGINS.append(render_url)
+            CORS_ALLOWED_ORIGINS.append(render_url.rstrip('/'))
+            CSRF_TRUSTED_ORIGINS.append(render_url.rstrip('/'))
     
-    # Ensure both API URLs are in CSRF trusted origins
-    api_urls = [
-        "https://bingo-api-94i2.onrender.com"  # Make sure this one is included too
+    # Ensure API and frontend URLs are in CSRF trusted origins
+    important_urls = [
+        "https://bingo-api-94i2.onrender.com",
+        "https://bingo-frontend-three.vercel.app",
+        # Add any new URLs here
     ]
-    for url in api_urls:
+    
+    for url in important_urls:
+        url = url.rstrip('/')  # Remove trailing slash
         if url not in CSRF_TRUSTED_ORIGINS:
             CSRF_TRUSTED_ORIGINS.append(url)
         if url not in CORS_ALLOWED_ORIGINS:
             CORS_ALLOWED_ORIGINS.append(url)
-
-    # Explicitly add Vercel frontend URL if not already added - fixed without trailing slash
-    vercel_url = "https://bingo-frontend-three.vercel.app"
-    if vercel_url not in CORS_ALLOWED_ORIGINS:
-        CORS_ALLOWED_ORIGINS.append(vercel_url)
-    if vercel_url not in CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS.append(vercel_url)
-    
-    # Cleanup any URLs with trailing slashes (which causes Django CORS error)
-    CORS_ALLOWED_ORIGINS = [url.rstrip('/') for url in CORS_ALLOWED_ORIGINS]
-    CSRF_TRUSTED_ORIGINS = [url.rstrip('/') for url in CSRF_TRUSTED_ORIGINS]
     
     print(f"Final CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
     print(f"Final CSRF_TRUSTED_ORIGINS: {CSRF_TRUSTED_ORIGINS}")
