@@ -4,7 +4,7 @@ services:
     name: bingo-api
     env: python
     buildCommand: ./render_build.sh
-    startCommand: python manage.py migrations && gunicorn -k uvicorn.workers.UvicornWorker core.asgi:application
+    startCommand: python manage.py migrations && gunicorn -k uvicorn.workers.UvicornWorker core.asgi:application 
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: core.settings
