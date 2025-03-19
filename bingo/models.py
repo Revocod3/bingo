@@ -1,4 +1,5 @@
-from django.db import models, transaction, F
+from django.db import models, transaction
+from django.db.models import F
 from django.conf import settings
 import uuid
 
