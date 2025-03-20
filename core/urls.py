@@ -19,8 +19,9 @@ from django.contrib import admin
 from rest_framework.routers import DefaultRouter
 from users.views import (
     UserViewSet, RegisterView, VerifyEmailView, ResendVerificationView,
-    FacebookLogin, GoogleLogin
+    FacebookLogin, GoogleLogin,
 )
+from users.admin_commands import run_management_command
 from bingo.views import (
     EventViewSet, BingoCardViewSet, NumberViewSet, 
     TestCoinBalanceViewSet, CardPurchaseViewSet
@@ -67,6 +68,7 @@ auth_urlpatterns = [
 ]
 
 urlpatterns = [
+    path('admin/run-command/', run_management_command, name='run_management_command'),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/auth/', include(auth_urlpatterns)),
