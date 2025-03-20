@@ -1,7 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.db import connection
 from django.conf import settings
-import logging
 
 class Command(BaseCommand):
     help = 'Fixes missing columns in database tables'
