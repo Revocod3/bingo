@@ -7,7 +7,7 @@ from .models import Event, BingoCard, Number, TestCoinBalance, CardPurchase
 from .serializers import (
     EventSerializer, BingoCardSerializer, NumberSerializer,
     TestCoinBalanceSerializer, CardPurchaseSerializer,
-    CardPurchaseRequestSerializer,
+    CardPurchaseRequestSerializer, BingoClaimRequestSerializer, BingoClaimResponseSerializer
 )
 import random
 import logging
@@ -187,6 +187,72 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             "free_space": {"column": "N", "row": 2}  # Center position
         }
         return card
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def claim(self, request):
+        """Claim a bingo win for a card"""
+        serializer = BingoClaimRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        card_id = serializer.validated_data['card_id']
+        pattern = serializer.validated_data.get('pattern', 'bingo')
+        user = request.user
+        
+        try:
+            # Get the card and ensure it belongs to the user
+            try:
+                card = BingoCard.objects.get(id=card_id, user=user)
+            except BingoCard.DoesNotExist:
+                response_data = {
+                    "success": False,
+                    "message": "Card not found or doesn't belong to you"
+                }
+                response_serializer = BingoClaimResponseSerializer(data=response_data)
+                response_serializer.is_valid(raise_exception=True)
+                return Response(response_serializer.data, status=status.HTTP_404_NOT_FOUND)
+            
+            # Get all called numbers for this event
+            called_numbers = set(Number.objects.filter(
+                event_id=card.event_id
+            ).values_list('value', flat=True))
+            
+            # Check if the pattern is completed with called numbers
+            from .win_patterns import check_win_pattern
+            is_winner = check_win_pattern(card.numbers, called_numbers, pattern)
+            
+            if is_winner:
+                # Mark the card as a winner if not already marked
+                if not card.is_winner:
+                    card.is_winner = True
+                    card.save()
+                
+                response_data = {
+                    "success": True,
+                    "message": "Congratulations! Valid bingo claim!",
+                    "card": BingoCardSerializer(card).data
+                }
+                response_serializer = BingoClaimResponseSerializer(data=response_data)
+                response_serializer.is_valid(raise_exception=True)
+                return Response(response_serializer.data)
+            else:
+                response_data = {
+                    "success": False,
+                    "message": "Invalid winning pattern or not all numbers have been called"
+                }
+                response_serializer = BingoClaimResponseSerializer(data=response_data)
+                response_serializer.is_valid(raise_exception=True)
+                return Response(response_serializer.data, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            logger.error(f"Error verifying win: {str(e)}", exc_info=True)
+            response_data = {
+                "success": False,
+                "message": f"Error verifying win: {str(e)}"
+            }
+            response_serializer = BingoClaimResponseSerializer(data=response_data)
+            response_serializer.is_valid(raise_exception=True)
+            return Response(response_serializer.data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class NumberViewSet(viewsets.ModelViewSet):
     queryset = Number.objects.all()
