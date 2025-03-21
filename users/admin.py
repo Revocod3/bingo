@@ -7,7 +7,7 @@ from .models import CustomUser
 class CustomUserAdmin(UserAdmin):
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        (_('Personal info'), {'fields': ('first_name', 'last_name')}),
+        (_('Personal info'), {'fields': ('first_name', 'last_name', 'uuid')}),
         (_('Permissions'), {'fields': ('is_active', 'is_staff', 'is_superuser',
                                        'groups', 'user_permissions')}),
         (_('Email verification'), {'fields': ('is_email_verified', 'verification_code', 'verification_code_created_at')}),
@@ -19,7 +19,8 @@ class CustomUserAdmin(UserAdmin):
             'fields': ('email', 'password1', 'password2'),
         }),
     )
-    list_display = ('email', 'first_name', 'last_name', 'is_staff', 'is_email_verified')
+    list_display = ('email', 'first_name', 'last_name', 'is_staff', 'is_email_verified', 'uuid')
+    readonly_fields = ('uuid',)
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('email',)
 

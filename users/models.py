@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils.translation import gettext_lazy as _
+import uuid
 
 
 class CustomUserManager(BaseUserManager):
@@ -42,6 +43,7 @@ class CustomUser(AbstractUser):
     is_email_verified = models.BooleanField(default=False)
     verification_code = models.CharField(max_length=6, blank=True, null=True)
     verification_code_created_at = models.DateTimeField(null=True, blank=True)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -54,4 +56,4 @@ class CustomUser(AbstractUser):
     class Meta:
         verbose_name = "User"
         verbose_name_plural = "Users"
-        abstract = False  
+        abstract = False
