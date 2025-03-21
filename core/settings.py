@@ -383,11 +383,18 @@ SPECTACULAR_SETTINGS = {
 
 # Channels configuration
 ASGI_APPLICATION = 'core.asgi.application'
+
+# Redis configuration based on environment
+redis_host = os.environ.get('REDIS_HOST', 'localhost')
+redis_port = os.environ.get('REDIS_PORT', '6379')
+redis_db = os.environ.get('REDIS_DB', '0')
+redis_url = os.environ.get('REDIS_URL', f'redis://{redis_host}:{redis_port}/{redis_db}')
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [os.environ.get('REDIS_URL', 'redis://localhost:6379/0')],
+            "hosts": [redis_url],
         },
     },
 }
