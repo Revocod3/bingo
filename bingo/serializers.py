@@ -29,7 +29,7 @@ class CardPurchaseSerializer(serializers.ModelSerializer):
         read_only_fields = ['purchase_date', 'last_modified']
 
 class CardPurchaseRequestSerializer(serializers.Serializer):
-    event_id = serializers.IntegerField()
+    event_id = serializers.UUIDField()
     quantity = serializers.IntegerField(min_value=1, max_value=20)  # Limit purchases to 20 cards at once
 
 class CardPurchaseResponseSerializer(serializers.Serializer):

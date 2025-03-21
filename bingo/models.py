@@ -79,10 +79,12 @@ class CardPurchase(models.Model):
     last_modified = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'card_purchases'
-        unique_together = ['user', 'event']  # Each user can have one purchase record per event
+        # Check if the existing migrations created a different table name
+        # For example, if it created "bingo_cardpurchase" instead
+        db_table = 'card_purchases'  # You might need to change this to match existing table
+        unique_together = ['user', 'event']
         indexes = [
-            models.Index(fields=['user', 'event']),  # Composite index for fast lookups
+            models.Index(fields=['user', 'event']),
         ]
     
     def __str__(self):
