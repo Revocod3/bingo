@@ -1,3 +1,4 @@
+from jsonschema import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -193,9 +194,27 @@ class NumberViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         try:
-            logger.info("Creating new number")
-            serializer.save()
+            event_id = self.request.data.get('event_id')
+            if not event_id:
+                raise ValidationError("event_id is required")
+                
+            # Verify event exists
+            try:
+                event = Event.objects.get(id=event_id)
+            except Event.DoesNotExist:
+                raise ValidationError("Event not found")
+                
+            # Check if number already exists for this event
+            value = self.request.data.get('value')
+            if Number.objects.filter(event_id=event_id, value=value).exists():
+                raise ValidationError("This number has already been called for this event")
+                
+            logger.info(f"Creating number {value} for event {event_id}")
+            serializer.save(event=event)
             logger.info("Number created successfully")
+        except ValidationError as e:
+            logger.error(f"Validation error: {str(e)}")
+            raise
         except Exception as e:
             logger.error(f"Error creating number: {str(e)}")
             raise
@@ -248,6 +267,56 @@ class NumberViewSet(viewsets.ModelViewSet):
                     'env_db_user': os.environ.get('AWS_DB_USER', 'Not set')
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['delete'])
+    def delete_last(self, request):
+        """Delete the last called number for a specific event"""
+        try:
+            event_id = request.query_params.get('event_id')
+            if not event_id:
+                return Response({"error": "event_id query parameter is required"}, 
+                                status=status.HTTP_400_BAD_REQUEST)
+            
+            with transaction.atomic():
+                # Get the latest number for this event
+                latest_number = Number.objects.filter(event_id=event_id).order_by('-called_at').first()
+                
+                if not latest_number:
+                    return Response({"error": "No numbers found for this event"}, 
+                                    status=status.HTTP_404_NOT_FOUND)
+                
+                # Delete the number
+                latest_number.delete()
+                logger.info(f"Deleted latest number for event {event_id}")
+                
+                return Response({"success": True, "message": "Latest number deleted successfully"})
+        except Exception as e:
+            logger.error(f"Error deleting latest number: {str(e)}", exc_info=True)
+            return Response({"error": f"Failed to delete latest number: {str(e)}"}, 
+                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['delete'])
+    def reset_event(self, request):
+        """Reset all called numbers for a specific event"""
+        try:
+            event_id = request.query_params.get('event_id')
+            if not event_id:
+                return Response({"error": "event_id query parameter is required"}, 
+                                status=status.HTTP_400_BAD_REQUEST)
+            
+            with transaction.atomic():
+                # Delete all numbers for this event
+                deleted_count, _ = Number.objects.filter(event_id=event_id).delete()
+                logger.info(f"Reset {deleted_count} numbers for event {event_id}")
+                
+                return Response({
+                    "success": True, 
+                    "message": f"Successfully reset {deleted_count} numbers for this event"
+                })
+        except Exception as e:
+            logger.error(f"Error resetting event numbers: {str(e)}", exc_info=True)
+            return Response({"error": f"Failed to reset event numbers: {str(e)}"}, 
+                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class TestCoinBalanceViewSet(viewsets.ModelViewSet):
     queryset = TestCoinBalance.objects.all()
