@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 class BingoConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.event_id = self.scope['url_route']['kwargs']['event_id']
+        
+        # Handle empty event_id case
+        if not self.event_id:
+            await self.close(code=4000)
+            return
+        
         self.room_group_name = f"bingo_event_{self.event_id}"
         
         # Authenticate the user from the token
