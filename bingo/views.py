@@ -36,6 +36,7 @@ class EventViewSet(viewsets.ModelViewSet):
 class BingoCardViewSet(viewsets.ModelViewSet):
     serializer_class = BingoCardSerializer
     permission_classes = [IsAuthenticated]
+    queryset = BingoCard.objects.all()  # Add this line for router registration
     
     def get_queryset(self):
         """Ensure users can only see their own cards"""
