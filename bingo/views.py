@@ -34,8 +34,12 @@ class EventViewSet(viewsets.ModelViewSet):
             raise
 
 class BingoCardViewSet(viewsets.ModelViewSet):
-    queryset = BingoCard.objects.all()
     serializer_class = BingoCardSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Ensure users can only see their own cards"""
+        return BingoCard.objects.filter(user=self.request.user)
     
     def perform_create(self, serializer):
         serializer.save()
