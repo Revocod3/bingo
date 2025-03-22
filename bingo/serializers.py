@@ -39,7 +39,7 @@ class CardPurchaseResponseSerializer(serializers.Serializer):
     message = serializers.CharField(required=False)
 
 class BingoClaimRequestSerializer(serializers.Serializer):
-    card_id = serializers.UUIDField(required=True)
+    card_id = serializers.IntegerField()
     pattern = serializers.CharField(required=False, default='bingo')
 
 class BingoClaimResponseSerializer(serializers.Serializer):

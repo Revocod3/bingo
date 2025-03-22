@@ -49,13 +49,37 @@ def check_win_pattern(card_numbers, called_numbers, pattern_name='bingo'):
         # Convert card numbers to a list if it's a dictionary
         numbers_list = []
         if isinstance(card_numbers, dict):
-            # Sort by position or key to ensure correct order
-            for i in range(25):
-                pos = str(i)
-                if pos in card_numbers:
-                    numbers_list.append(card_numbers[pos])
-                elif i in card_numbers:
-                    numbers_list.append(card_numbers[i])
+            # Handle BINGO column format - convert to flat list
+            if "B" in card_numbers and isinstance(card_numbers["B"], list):
+                # Check for free space in BINGO format
+                free_space = card_numbers.get("free_space", {})
+                free_space_col = free_space.get("column", "N")
+                free_space_row = free_space.get("row", 2)
+                
+                # Build the numbers list in the correct order (0-24)
+                bingo_columns = ["B", "I", "N", "G", "O"]
+                for row in range(5):
+                    for col_idx, col in enumerate(bingo_columns):
+                        pos = row * 5 + col_idx
+                        # If this is the free space position, use 0 or 'FREE'
+                        if col == free_space_col and row == free_space_row:
+                            numbers_list.append(0)  # Use 0 for free space
+                        else:
+                            # Get the correct number from the column
+                            col_numbers = card_numbers.get(col, [])
+                            if 0 <= row < len(col_numbers):
+                                numbers_list.append(col_numbers[row])
+                            else:
+                                logger.error(f"Missing number for {col} column, row {row}")
+                                numbers_list.append(-1)  # Invalid position
+            else:
+                # Handle older position-based format
+                for i in range(25):
+                    pos = str(i)
+                    if pos in card_numbers:
+                        numbers_list.append(card_numbers[pos])
+                    elif i in card_numbers:
+                        numbers_list.append(card_numbers[i])
         elif isinstance(card_numbers, list):
             numbers_list = card_numbers
         else:
@@ -78,5 +102,5 @@ def check_win_pattern(card_numbers, called_numbers, pattern_name='bingo'):
         # Check if all numbers in the pattern are called
         return all(numbers_list[pos] in called_numbers for pos in pattern)
     except Exception as e:
-        logger.error(f"Error checking win pattern: {str(e)}")
+        logger.error(f"Error checking win pattern: {str(e)}", exc_info=True)
         return False

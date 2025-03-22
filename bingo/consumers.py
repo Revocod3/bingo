@@ -156,7 +156,8 @@ class BingoConsumer(AsyncWebsocketConsumer):
             return
         
         card_id = data.get('card_id')
-        winning_pattern = data.get('pattern', 'bingo')  # Default to full bingo
+        # Always use 'bingo' to check for any winning pattern
+        winning_pattern = 'bingo'
         
         if not card_id:
             await self.send(text_data=json.dumps({

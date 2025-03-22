@@ -196,6 +196,8 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         card_id = serializer.validated_data['card_id']
+        # Make pattern optional - if not provided, we'll check all patterns
+        # This allows the frontend to just send the card_id
         pattern = serializer.validated_data.get('pattern', 'bingo')
         user = request.user
         
@@ -219,7 +221,8 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             
             # Check if the pattern is completed with called numbers
             from .win_patterns import check_win_pattern
-            is_winner = check_win_pattern(card.numbers, called_numbers, pattern)
+            # Always use 'bingo' as the pattern name to check all winning patterns
+            is_winner = check_win_pattern(card.numbers, called_numbers, 'bingo')
             
             if is_winner:
                 # Mark the card as a winner if not already marked
@@ -380,7 +383,7 @@ class NumberViewSet(viewsets.ModelViewSet):
                     "message": f"Successfully reset {deleted_count} numbers for this event"
                 })
         except Exception as e:
-            logger.error(f"Error resetting event numbers: {str(e)}", exc_info=True)
+            logger.error(f"Error resetting event numbers: {str(e)}")
             return Response({"error": f"Failed to reset event numbers: {str(e)}"}, 
                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
