@@ -176,17 +176,36 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             cache.delete(lock_id)
     
     def _generate_bingo_card_numbers(self):
-        """Generate a random set of numbers for a bingo card"""
-        # Standard 5x5 bingo card with free space in center
-        card = {
-            "B": sorted(random.sample(range(1, 16), 5)),
-            "I": sorted(random.sample(range(16, 31), 5)),
-            "N": sorted(random.sample(range(31, 46), 5)),
-            "G": sorted(random.sample(range(46, 61), 5)),
-            "O": sorted(random.sample(range(61, 76), 5)),
-            "free_space": {"column": "N", "row": 2}  # Center position
+        """Generate a valid bingo card with numbers in the correct range for each column"""
+        # B: 1-15, I: 16-30, N: 31-45, G: 46-60, O: 61-75
+        columns = {
+            'B': list(range(1, 16)),    # 1-15
+            'I': list(range(16, 31)),   # 16-30
+            'N': list(range(31, 46)),   # 31-45
+            'G': list(range(46, 61)),   # 46-60
+            'O': list(range(61, 76))    # 61-75
         }
-        return card
+        
+        # Shuffle each column's numbers
+        for col in columns.keys():
+            random.shuffle(columns[col])
+        
+        # For each letter, select 5 unique numbers (except N which gets 4 + free space)
+        card_numbers = []
+        for letter in 'BINGO':
+            if letter == 'N':
+                # In the middle column (N), select 4 numbers + free space
+                selected = columns[letter][:4]
+                # Add the free space in the middle (position 2)
+                card_column = selected[:2] + [0] + selected[2:] 
+            else:
+                # For other columns, select 5 numbers
+                card_column = columns[letter][:5]
+            
+            # Add the selected numbers for this column
+            card_numbers.extend([f"{letter}{num}" for num in card_column])
+        
+        return card_numbers
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def claim(self, request):
