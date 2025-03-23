@@ -24,9 +24,85 @@ class Command(BaseCommand):
         parser.add_argument('--users', type=int, default=5, help='Number of regular users to create')
         parser.add_argument('--events', type=int, default=3, help='Number of events to create')
         parser.add_argument('--cards-per-user', type=int, default=2, help='Number of cards per user per event')
+        parser.add_argument('--clear', action='store_true', help='Clear existing data before seeding')
+
+    def clear_existing_data(self):
+        """Clear existing data to allow clean reseeding"""
+        self.stdout.write('Clearing existing data...')
+        
+        # Clear in order to avoid foreign key constraint issues
+        # First, delete Numbers which reference Events
+        number_count = Number.objects.all().count()
+        Number.objects.all().delete()
+        self.stdout.write(f'Deleted {number_count} called numbers')
+        
+        # Delete BingoCards which reference Users and Events
+        card_count = BingoCard.objects.all().count()
+        BingoCard.objects.all().delete()
+        self.stdout.write(f'Deleted {card_count} bingo cards')
+        
+        # Delete Events
+        event_count = Event.objects.all().count()
+        Event.objects.all().delete()
+        self.stdout.write(f'Deleted {event_count} events')
+        
+        # Delete test coins and wallets if models exist
+        if HAS_WALLET_MODELS:
+            coin_count = TestCoin.objects.all().count()
+            TestCoin.objects.all().delete()
+            self.stdout.write(f'Deleted {coin_count} test coins')
+            
+            wallet_count = Wallet.objects.all().count()
+            Wallet.objects.all().delete()
+            self.stdout.write(f'Deleted {wallet_count} wallets')
+        
+        # Note: We're not deleting users by default to preserve user accounts
+        self.stdout.write(self.style.SUCCESS('Data clearing completed'))
+
+    def generate_bingo_card(self):
+        """
+        Generate a proper Bingo card with numbers in the format:
+        ["B1", "B3", "I16", "N31", "N0", ...] where:
+        - B column: 1-15
+        - I column: 16-30
+        - N column: 31-45 (with free space in center)
+        - G column: 46-60
+        - O column: 61-75
+        """
+        # Initialize empty list for card numbers
+        card_numbers = []
+        
+        # Define column letters and ranges
+        columns = [
+            ('B', range(1, 16)),
+            ('I', range(16, 31)),
+            ('N', range(31, 46)),
+            ('G', range(46, 61)),
+            ('O', range(61, 76))
+        ]
+        
+        # Generate numbers for each column
+        for letter, number_range in columns:
+            # Select 5 random numbers from the column range
+            col_numbers = random.sample(list(number_range), 5)
+            
+            # Add numbers to the card with column letter prefix
+            for num in col_numbers:
+                card_numbers.append(f"{letter}{num}")
+        
+        # Replace middle position (index 12) with free space "N0"
+        # First find the position of the middle N number (3rd number in the N column)
+        n_position = 2 * 5 + 2  # Index of the middle N number in the flat list
+        card_numbers[n_position] = "N0"
+        
+        return card_numbers
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Starting database seeding...'))
+        
+        # Clear existing data if requested
+        if options['clear']:
+            self.clear_existing_data()
         
         num_users = options['users']
         num_events = options['events']
@@ -136,38 +212,8 @@ class Command(BaseCommand):
                     continue
                 
                 for _ in range(cards_to_create):
-                    # Generate random card numbers
-                    numbers = {}
-                    
-                    # B column (1-15)
-                    b_nums = random.sample(range(1, 16), 5)
-                    for i, num in enumerate(b_nums):
-                        numbers[str(i * 5)] = num
-                    
-                    # I column (16-30)
-                    i_nums = random.sample(range(16, 31), 5)
-                    for i, num in enumerate(i_nums):
-                        numbers[str(i * 5 + 1)] = num
-                    
-                    # N column (31-45) with middle spot as FREE
-                    n_nums = random.sample(range(31, 46), 5)
-                    for i, num in enumerate(n_nums):
-                        pos = i * 5 + 2
-                        if pos != 12:  # Skip center position
-                            numbers[str(pos)] = num
-                    
-                    # Center is free space (position 12)
-                    numbers['12'] = 0  # 0 represents FREE
-                    
-                    # G column (46-60)
-                    g_nums = random.sample(range(46, 61), 5)
-                    for i, num in enumerate(g_nums):
-                        numbers[str(i * 5 + 3)] = num
-                    
-                    # O column (61-75)
-                    o_nums = random.sample(range(61, 76), 5)
-                    for i, num in enumerate(o_nums):
-                        numbers[str(i * 5 + 4)] = num
+                    # Generate card numbers using the new method
+                    numbers = self.generate_bingo_card()
                     
                     # Generate a unique hash for this card based on the numbers
                     card_hash = hashlib.md5(
