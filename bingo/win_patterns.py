@@ -106,22 +106,44 @@ def parse_card_numbers(card_numbers):
     """
     numbers_list = [0] * 25  # Initialize with zeros
     
+    # Log the input format for debugging
+    logger.debug(f"Parsing card numbers format: {type(card_numbers)}")
+    
     # Handle list of strings format (standard format: ["B1", "B2", ...])
     if isinstance(card_numbers, list) and len(card_numbers) == 25 and all(isinstance(item, str) for item in card_numbers):
+        # Extract the BINGO column information
+        bingo_columns = {
+            'B': [],
+            'I': [],
+            'N': [],
+            'G': [],
+            'O': []
+        }
+        
+        # First pass: categorize by column
         for idx, item in enumerate(card_numbers):
             if item == "N0" or item == "0":
                 # Free space
-                numbers_list[idx] = 0
-            else:
-                try:
-                    # Extract the number part (ignore the letter prefix)
-                    # For example, from "B12" get 12
-                    num_part = ''.join(c for c in item if c.isdigit())
-                    if num_part:
-                        numbers_list[idx] = int(num_part)
-                except ValueError:
-                    # If we can't parse it, keep it as 0
-                    pass
+                bingo_columns['N'].append(0)
+            elif len(item) >= 2:
+                # Get the letter and number parts
+                letter = item[0]
+                if letter in bingo_columns:
+                    try:
+                        num_part = ''.join(c for c in item[1:] if c.isdigit())
+                        if num_part:
+                            bingo_columns[letter].append(int(num_part))
+                    except ValueError:
+                        bingo_columns[letter].append(0)
+        
+        # Second pass: remap to proper positions (row-major order)
+        for col_idx, letter in enumerate("BINGO"):
+            col_values = bingo_columns[letter]
+            for row_idx, value in enumerate(col_values[:5]):
+                pos = row_idx * 5 + col_idx  # Convert to row-major index
+                if pos < 25:
+                    numbers_list[pos] = value
+        
         return numbers_list
     
     # Fall back to other formats...
@@ -171,20 +193,38 @@ def parse_card_numbers(card_numbers):
             
     # Handle format where the card has a list of strings like ["B1", "I16", ...]
     elif all(isinstance(item, str) for item in card_numbers):
-        for idx, item in enumerate(card_numbers[:25]):
+        # Similar processing as the first case but for a non-25 length list
+        bingo_columns = {
+            'B': [],
+            'I': [],
+            'N': [],
+            'G': [],
+            'O': []
+        }
+        
+        for item in card_numbers[:25]:
             if item.startswith('N0') or item == '0':
-                # This is the free space
-                numbers_list[idx] = 0
-            else:
-                # Try to extract the number part
-                try:
-                    # Remove any letter prefix and convert to int
-                    num_part = ''.join(c for c in item if c.isdigit())
-                    if num_part:
-                        numbers_list[idx] = int(num_part)
-                except ValueError:
-                    pass
-            
+                bingo_columns['N'].append(0)
+            elif len(item) >= 2:
+                letter = item[0]
+                if letter in bingo_columns:
+                    try:
+                        num_part = ''.join(c for c in item[1:] if c.isdigit())
+                        if num_part:
+                            bingo_columns[letter].append(int(num_part))
+                    except ValueError:
+                        bingo_columns[letter].append(0)
+        
+        # Map to proper positions
+        for col_idx, letter in enumerate("BINGO"):
+            col_values = bingo_columns[letter]
+            for row_idx, value in enumerate(col_values[:5]):
+                pos = row_idx * 5 + col_idx
+                if pos < 25:
+                    numbers_list[pos] = value
+    
+    # Log the parsed result for debugging
+    logger.debug(f"Parsed card numbers: {numbers_list}")        
     return numbers_list
 
 def check_win_pattern(card_numbers, called_numbers, pattern_name='bingo', event_id=None):
@@ -195,7 +235,7 @@ def check_win_pattern(card_numbers, called_numbers, pattern_name='bingo', event_
         card_numbers: Card numbers in any supported format
         called_numbers: Set of called numbers
         pattern_name: Name of the pattern to check (default is 'bingo' - any line)
-        event_id: Optional event ID to check against patterns allowed for that event
+        event_id: Optional event ID to check patterns allowed for that event
     
     Returns:
         bool: True if the pattern is completed, False otherwise
@@ -210,9 +250,33 @@ def check_win_pattern(card_numbers, called_numbers, pattern_name='bingo', event_
             patterns = get_patterns_for_event(event_id)
         else:
             patterns = get_patterns_from_db()
+        
+        # Handle custom pattern name mapping - map Spanish names to English pattern names
+        pattern_name_mapping = {
+            'linea horizontal 1': 'row_1',
+            'linea horizontal 2': 'row_2',
+            'linea horizontal 3': 'row_3',
+            'linea horizontal 4': 'row_4',
+            'linea horizontal 5': 'row_5',
+            'linea vertical 1': 'col_1',
+            'linea vertical 2': 'col_2',
+            'linea vertical 3': 'col_3',
+            'linea vertical 4': 'col_4',
+            'linea vertical 5': 'col_5',
+        }
+        
+        # Try to map the pattern name if it's in Spanish
+        normalized_pattern_name = pattern_name.lower()
+        if normalized_pattern_name in pattern_name_mapping:
+            pattern_name = pattern_name_mapping[normalized_pattern_name]
             
         pattern = patterns.get(pattern_name.lower())
         
+        # Log debugging information about the pattern check
+        logger.debug(f"Checking pattern: {pattern_name} with positions: {pattern}")
+        logger.debug(f"Card numbers: {numbers_list}")
+        logger.debug(f"Called numbers: {called_numbers}")
+            
         # Special case for "bingo" which can be any row, column, or diagonal
         if pattern_name.lower() == 'bingo' or pattern is None:
             # Check each pattern in the database
@@ -220,26 +284,70 @@ def check_win_pattern(card_numbers, called_numbers, pattern_name='bingo', event_
                 # Only check default patterns if no specific pattern name was provided
                 if pattern_name.lower() == 'bingo' or p_name == pattern_name.lower():
                     # Check if all numbers in this pattern are called
-                    matched_positions = [pos for pos in p_positions if 0 <= pos < len(numbers_list) and numbers_list[pos] in called_numbers]
+                    matched_positions = []
+                    for pos in p_positions:
+                        if 0 <= pos < len(numbers_list):
+                            value = numbers_list[pos]
+                            if value in called_numbers or value == 0:  # 0 is free space
+                                matched_positions.append(pos)
+                    
                     if len(matched_positions) == len(p_positions):
                         # This pattern is a winner!
                         matched_numbers = [str(numbers_list[pos]) for pos in matched_positions]
+                        
+                        # Get display name from system default
+                        pattern_display_name = p_name.replace('_', ' ').title()
+                        
+                        # If this came from a database pattern, try to get its display name
+                        try:
+                            from .models import WinningPattern
+                            db_pattern = WinningPattern.objects.filter(name=p_name).first()
+                            if db_pattern:
+                                pattern_display_name = db_pattern.display_name
+                        except Exception:
+                            # If we can't retrieve from DB, use the formatted name
+                            pass
+                        
+                        logger.debug(f"Winner with pattern: {p_name}, positions: {p_positions}, numbers: {matched_numbers}")
+                        
                         return True, {
                             'pattern_name': p_name,
                             'positions': p_positions,
-                            'matched_numbers': matched_numbers
+                            'matched_numbers': matched_numbers,
+                            'display_name': pattern_display_name
                         }
             return False, None
         
         # Check if all numbers in the specific pattern are called
-        matched_positions = [pos for pos in pattern if 0 <= pos < len(numbers_list) and numbers_list[pos] in called_numbers]
+        matched_positions = []
+        for pos in pattern:
+            if 0 <= pos < len(numbers_list):
+                value = numbers_list[pos]
+                if value in called_numbers or value == 0:  # 0 is free space
+                    matched_positions.append(pos)
+        
         if len(matched_positions) == len(pattern):
             # Winner with the specified pattern!
             matched_numbers = [str(numbers_list[pos]) for pos in matched_positions]
+            
+            # Get display name if possible
+            pattern_display_name = pattern_name.replace('_', ' ').title()
+            try:
+                from .models import WinningPattern
+                db_pattern = WinningPattern.objects.filter(name=pattern_name.lower()).first()
+                if db_pattern:
+                    pattern_display_name = db_pattern.display_name
+            except Exception:
+                # If we can't retrieve from DB, use the formatted name
+                pass
+            
+            logger.debug(f"Winner with pattern: {pattern_name}, positions: {pattern}, numbers: {matched_numbers}")
+            
             return True, {
                 'pattern_name': pattern_name,
                 'positions': pattern,
-                'matched_numbers': matched_numbers
+                'matched_numbers': matched_numbers,
+                'display_name': pattern_display_name
             }
         
         return False, None
