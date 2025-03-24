@@ -67,3 +67,74 @@ python manage.py test_patterns --card-id <uuid>
 
 # Test cards from a specific event
 python manage.py test_patterns --event-id <uuid>
+```
+
+## Installation & Setup
+
+### Prerequisites
+
+- Python 3.8+
+- PostgreSQL 12+
+- Redis (for caching and websocket support)
+
+### Local Development Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/bingo-api.git
+   cd bingo-api
+   ```
+
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Set up environment variables (create a `.env` file):
+   ```
+   DEBUG=True
+   SECRET_KEY=your_secret_key
+   DATABASE_URL=postgres://user:password@localhost:5432/bingo
+   REDIS_URL=redis://localhost:6379/0
+   ```
+
+5. Run migrations:
+   ```bash
+   python manage.py migrate
+   ```
+
+6. Load default patterns:
+   ```bash
+   python manage.py load_default_patterns
+   ```
+
+7. Run the development server:
+   ```bash
+   python manage.py runserver
+   ```
+
+## API Usage Examples
+
+### Creating a New Pattern
+
+```python
+import requests
+
+response = requests.post('http://localhost:8000/api/winning-patterns/', json={
+    'name': 'My Custom Pattern',
+    'description': 'A custom pattern in the shape of a star',
+    'cells': [2, 6, 8, 12, 16, 18, 22],
+    'is_active': True
+})
+
+pattern = response.json()
+print(f"Created pattern with ID: {pattern['id']}")
+```
+
+### Checking if a Card Has a Winning Pattern
