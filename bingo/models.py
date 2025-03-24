@@ -14,6 +14,10 @@ class Event(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    allowed_patterns = models.ManyToManyField('WinningPattern', blank=True, related_name='events')
+
+    def __str__(self):
+        return self.name
 
 class BingoCard(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -89,3 +93,16 @@ class CardPurchase(models.Model):
     
     def __str__(self):
         return f"{self.user.email}: {self.cards_owned} cards for {self.event.name}"
+
+class WinningPattern(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=50, unique=True)
+    display_name = models.CharField(max_length=100)
+    positions = models.JSONField(help_text="JSON array of positions that form this pattern")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_patterns')
+
+    def __str__(self):
+        return self.display_name

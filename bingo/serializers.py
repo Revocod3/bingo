@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Event, BingoCard, Number, TestCoinBalance, CardPurchase
+from .models import Event, BingoCard, Number, TestCoinBalance, CardPurchase, WinningPattern
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,10 +39,45 @@ class CardPurchaseResponseSerializer(serializers.Serializer):
     message = serializers.CharField(required=False)
 
 class BingoClaimRequestSerializer(serializers.Serializer):
-    card_id = serializers.IntegerField()
-    pattern = serializers.CharField(required=False, default='bingo')
+    card_id = serializers.UUIDField()  # Changed from IntegerField to UUIDField to match BingoCard.id
+    pattern_name = serializers.CharField(required=False, default='bingo')
+
+class WinningPatternDetailSerializer(serializers.Serializer):
+    pattern_name = serializers.CharField()
+    display_name = serializers.CharField(required=False)
+    positions = serializers.ListField(child=serializers.IntegerField())
+    matched_numbers = serializers.ListField(child=serializers.CharField(), required=False)
 
 class BingoClaimResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
-    message = serializers.CharField(required=False)
+    message = serializers.CharField()
     card = BingoCardSerializer(required=False)
+    winning_pattern = WinningPatternDetailSerializer(required=False)
+    event_id = serializers.UUIDField(required=False)
+    called_numbers = serializers.ListField(child=serializers.IntegerField(), required=False)
+
+class WinningPatternSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WinningPattern
+        fields = ['id', 'name', 'display_name', 'positions', 'is_active', 'created_at', 'updated_at', 'created_by']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'created_by']
+
+    def validate_positions(self, positions):
+        """Validate that positions are in the correct format and within range"""
+        if not isinstance(positions, list):
+            raise serializers.ValidationError("Positions must be an array")
+        
+        if len(positions) == 0:
+            raise serializers.ValidationError("Positions cannot be empty")
+            
+        for pos in positions:
+            if not isinstance(pos, int):
+                raise serializers.ValidationError("Each position must be an integer")
+            if pos < 0 or pos > 24:
+                raise serializers.ValidationError("Positions must be between 0 and 24")
+                
+        return positions
+
+class WinningPatternCreateSerializer(WinningPatternSerializer):
+    class Meta(WinningPatternSerializer.Meta):
+        read_only_fields = ['id', 'created_at', 'updated_at']

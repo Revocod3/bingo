@@ -256,6 +256,90 @@ paths:
           description: Invalid input
         401:
           description: Unauthorized
+
+  /events/{id}/patterns/:
+    get:
+      summary: Get patterns allowed for an event
+      operationId: getEventPatterns
+      tags:
+        - Events
+        - Winning Patterns
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Event ID
+      responses:
+        200:
+          description: List of patterns allowed for this event
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WinningPattern'
+        401:
+          description: Unauthorized
+        404:
+          description: Event not found
+
+  /events/{id}/set_patterns/:
+    post:
+      summary: Set allowed patterns for an event
+      operationId: setEventPatterns
+      tags:
+        - Events
+        - Winning Patterns
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Event ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pattern_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+              required:
+                - pattern_ids
+      responses:
+        200:
+          description: Patterns set successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  patterns:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WinningPattern'
+        400:
+          description: Invalid request
+        401:
+          description: Unauthorized
+        404:
+          description: Event not found
+
   /cards/:
     get:
       summary: List all bingo cards
@@ -275,6 +359,60 @@ paths:
                   $ref: '#/components/schemas/BingoCard'
         401:
           description: Unauthorized
+
+  /cards/{id}/verify_pattern/:
+    get:
+      summary: Verify if a specific pattern is completed on a card
+      operationId: verifyCardPattern
+      tags:
+        - Bingo Cards
+        - Winning Patterns
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Card ID
+        - name: pattern
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Pattern name to check. Default is 'bingo' which checks all patterns.
+      responses:
+        200:
+          description: Pattern verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether the pattern is completed
+                  card_id:
+                    type: string
+                    format: uuid
+                  event_id:
+                    type: string
+                    format: uuid
+                  called_numbers:
+                    type: array
+                    items:
+                      type: integer
+                  winning_pattern:
+                    $ref: '#/components/schemas/WinningPatternDetail'
+                  message:
+                    type: string
+        401:
+          description: Unauthorized
+        404:
+          description: Card not found
+
   /ws/event/{eventId}/:
     get:
       summary: WebSocket endpoint for bingo game events
@@ -313,6 +451,130 @@ paths:
           description: JWT access token for authentication
       tags:
         - WebSockets
+  /winning-patterns/:
+    get:
+      summary: List all winning patterns
+      operationId: listWinningPatterns
+      tags:
+        - Winning Patterns
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: List of winning patterns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WinningPattern'
+        401:
+          description: Unauthorized
+    post:
+      summary: Create a winning pattern
+      operationId: createWinningPattern
+      tags:
+        - Winning Patterns
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WinningPatternCreate'
+      responses:
+        201:
+          description: Winning pattern created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WinningPattern'
+        400:
+          description: Invalid input
+        401:
+          description: Unauthorized
+
+  /winning-patterns/{id}/:
+    get:
+      summary: Get a specific winning pattern
+      operationId: getWinningPattern
+      tags:
+        - Winning Patterns
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Winning pattern details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WinningPattern'
+        401:
+          description: Unauthorized
+        404:
+          description: Winning pattern not found
+    put:
+      summary: Update a winning pattern
+      operationId: updateWinningPattern
+      tags:
+        - Winning Patterns
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WinningPatternCreate'
+      responses:
+        200:
+          description: Winning pattern updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WinningPattern'
+        400:
+          description: Invalid input
+        401:
+          description: Unauthorized
+        404:
+          description: Winning pattern not found
+    delete:
+      summary: Delete a winning pattern
+      operationId: deleteWinningPattern
+      tags:
+        - Winning Patterns
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        204:
+          description: Winning pattern deleted
+        401:
+          description: Unauthorized
+        404:
+          description: Winning pattern not found
 components:
   schemas:
     User:
@@ -519,6 +781,80 @@ components:
       required:
         - event
         - user
+    WinningPattern:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        display_name:
+          type: string
+        positions:
+          type: array
+          items:
+            type: integer
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        created_by:
+          type: object
+          properties:
+            id:
+              type: integer
+            email:
+              type: string
+              format: email
+      required:
+        - id
+        - name
+        - display_name
+        - positions
+        - is_active
+    
+    WinningPatternCreate:
+      type: object
+      properties:
+        name:
+          type: string
+        display_name:
+          type: string
+        positions:
+          type: array
+          items:
+            type: integer
+        is_active:
+          type: boolean
+      required:
+        - name
+        - display_name
+        - positions
+
+    WinningPatternDetail:
+      type: object
+      properties:
+        pattern_name:
+          type: string
+        display_name:
+          type: string
+        positions:
+          type: array
+          items:
+            type: integer
+        matched_numbers:
+          type: array
+          items:
+            type: string
+      required:
+        - pattern_name
+        - positions
+
   securitySchemes:
     BearerAuth:
       type: http

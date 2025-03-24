@@ -5,7 +5,7 @@ import json
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from users.models import CustomUser
-from bingo.models import Event, BingoCard, Number
+from bingo.models import Event, BingoCard, Number, WinningPattern
 import datetime
 
 # Try to import wallet-related models, but handle gracefully if they don't exist
@@ -68,34 +68,110 @@ class Command(BaseCommand):
         - N column: 31-45 (with free space in center)
         - G column: 46-60
         - O column: 61-75
-        """
-        # Initialize empty list for card numbers
-        card_numbers = []
         
+        Numbers are arranged in column-first order to match the standard 5x5 grid:
+        0  5  10 15 20 (B column)
+        1  6  11 16 21 (I column)
+        2  7  12 17 22 (N column with free space at 12)
+        3  8  13 18 23 (G column)
+        4  9  14 19 24 (O column)
+        """
         # Define column letters and ranges
         columns = [
-            ('B', range(1, 16)),
-            ('I', range(16, 31)),
-            ('N', range(31, 46)),
-            ('G', range(46, 61)),
-            ('O', range(61, 76))
+            ('B', range(1, 16)),    # 1-15
+            ('I', range(16, 31)),   # 16-30
+            ('N', range(31, 46)),   # 31-45
+            ('G', range(46, 61)),   # 46-60
+            ('O', range(61, 76))    # 61-75
         ]
         
+        # Initialize empty list for card numbers (25 positions)
+        card_numbers = [""] * 25
+        
         # Generate numbers for each column
-        for letter, number_range in columns:
-            # Select 5 random numbers from the column range
+        for col_idx, (letter, number_range) in enumerate(columns):
+            # Select 5 random unique numbers from the column range
             col_numbers = random.sample(list(number_range), 5)
             
-            # Add numbers to the card with column letter prefix
-            for num in col_numbers:
-                card_numbers.append(f"{letter}{num}")
-        
-        # Replace middle position (index 12) with free space "N0"
-        # First find the position of the middle N number (3rd number in the N column)
-        n_position = 2 * 5 + 2  # Index of the middle N number in the flat list
-        card_numbers[n_position] = "N0"
+            # Place numbers in the appropriate positions
+            for row_idx in range(5):
+                # Calculate position in the flat card array (col-first layout)
+                position = row_idx * 5 + col_idx
+                
+                # Handle free space in the middle (position 12)
+                if position == 12:  # Center position
+                    card_numbers[position] = "N0"  # Free space
+                else:
+                    card_numbers[position] = f"{letter}{col_numbers[row_idx]}"
         
         return card_numbers
+
+    def create_default_patterns(self):
+        """Create default winning patterns if they don't exist"""
+        self.stdout.write('Creating default winning patterns...')
+        
+        # Define default patterns
+        default_patterns = [
+            # Horizontal lines
+            {'name': 'row_1', 'display_name': 'Top Row', 'positions': [0, 1, 2, 3, 4]},
+            {'name': 'row_2', 'display_name': 'Second Row', 'positions': [5, 6, 7, 8, 9]},
+            {'name': 'row_3', 'display_name': 'Middle Row', 'positions': [10, 11, 12, 13, 14]},
+            {'name': 'row_4', 'display_name': 'Fourth Row', 'positions': [15, 16, 17, 18, 19]},
+            {'name': 'row_5', 'display_name': 'Bottom Row', 'positions': [20, 21, 22, 23, 24]},
+            
+            # Vertical lines
+            {'name': 'col_1', 'display_name': 'First Column', 'positions': [0, 5, 10, 15, 20]},
+            {'name': 'col_2', 'display_name': 'Second Column', 'positions': [1, 6, 11, 16, 21]},
+            {'name': 'col_3', 'display_name': 'Middle Column', 'positions': [2, 7, 12, 17, 22]},
+            {'name': 'col_4', 'display_name': 'Fourth Column', 'positions': [3, 8, 13, 18, 23]},
+            {'name': 'col_5', 'display_name': 'Last Column', 'positions': [4, 9, 14, 19, 24]},
+            
+            # Diagonals
+            {'name': 'diag_1', 'display_name': 'Diagonal (Top Left to Bottom Right)', 'positions': [0, 6, 12, 18, 24]},
+            {'name': 'diag_2', 'display_name': 'Diagonal (Top Right to Bottom Left)', 'positions': [4, 8, 12, 16, 20]},
+            
+            # Special patterns
+            {'name': 'corners', 'display_name': 'Four Corners', 'positions': [0, 4, 20, 24]},
+            {'name': 'center', 'display_name': 'Center Square (3x3)', 'positions': [6, 7, 8, 11, 12, 13, 16, 17, 18]},
+            
+            # Full card
+            {'name': 'blackout', 'display_name': 'Blackout (Full Card)', 'positions': list(range(25))},
+            
+            # Shapes
+            {'name': 'x_shape', 'display_name': 'X Shape', 'positions': [0, 4, 6, 8, 12, 16, 18, 20, 24]},
+            {'name': 'plus_sign', 'display_name': 'Plus Sign', 'positions': [2, 7, 10, 11, 12, 13, 14, 17, 22]},
+        ]
+        
+        created_count = 0
+        existing_count = 0
+        
+        # Try to find an admin user to use as creator
+        try:
+            admin_user = CustomUser.objects.filter(is_superuser=True).first()
+        except:
+            admin_user = None
+            self.stdout.write(self.style.WARNING('No admin user found for pattern creation. Using system.'))
+        
+        # Create patterns
+        for pattern_data in default_patterns:
+            try:
+                # Skip if pattern already exists
+                if WinningPattern.objects.filter(name=pattern_data['name']).exists():
+                    existing_count += 1
+                    continue
+                    
+                WinningPattern.objects.create(
+                    name=pattern_data['name'],
+                    display_name=pattern_data['display_name'],
+                    positions=pattern_data['positions'],
+                    is_active=True,
+                    created_by=admin_user
+                )
+                created_count += 1
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Error creating pattern {pattern_data['name']}: {str(e)}"))
+        
+        self.stdout.write(self.style.SUCCESS(f'Created {created_count} new patterns, {existing_count} already existed.'))
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('Starting database seeding...'))
@@ -126,6 +202,9 @@ class Command(BaseCommand):
                 last_name='User'
             )
             self.stdout.write(self.style.SUCCESS(f'Created admin user: {admin_email} / {admin_password}'))
+        
+        # Create default winning patterns
+        self.create_default_patterns()
         
         # Create regular users
         users = [admin]  # Start with the admin user
