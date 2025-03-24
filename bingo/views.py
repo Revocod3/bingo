@@ -359,10 +359,13 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                     card.is_winner = True
                     card.save()
                 
+                # Serialize card separately first
+                card_data = BingoCardSerializer(card).data
+                
                 response_data = {
                     "success": True,
                     "message": f"Congratulations! Valid bingo claim with pattern {win_details['pattern_name']}!",
-                    "card": BingoCardSerializer(card).data,
+                    "card": card_data,  # Use pre-serialized data
                     "winning_pattern": win_details
                 }
                 response_serializer = BingoClaimResponseSerializer(data=response_data)

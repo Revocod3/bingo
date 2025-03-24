@@ -9,7 +9,8 @@ class EventSerializer(serializers.ModelSerializer):
 class BingoCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = BingoCard
-        fields = '__all__'
+        fields = ['id', 'event', 'numbers', 'is_winner', 'created_at']
+        read_only_fields = ['hash']  # Mark hash as read-only to prevent validation issues
 
 class NumberSerializer(serializers.ModelSerializer):
     class Meta:
@@ -51,7 +52,7 @@ class WinningPatternDetailSerializer(serializers.Serializer):
 class BingoClaimResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     message = serializers.CharField()
-    card = BingoCardSerializer(required=False)
+    card = serializers.DictField(required=False)  # Change to DictField to avoid validation
     winning_pattern = WinningPatternDetailSerializer(required=False)
     event_id = serializers.UUIDField(required=False)
     called_numbers = serializers.ListField(child=serializers.IntegerField(), required=False)
