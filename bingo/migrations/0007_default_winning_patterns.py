@@ -1,22 +1,21 @@
 from django.db import migrations
-from django.contrib.auth import get_user_model
 import uuid
 
 def create_default_patterns(apps, schema_editor):
-    # Get the models
+    # Get the models using the historical versions from apps
     WinningPattern = apps.get_model('bingo', 'WinningPattern')
-    User = get_user_model()
+    CustomUser = apps.get_model('users', 'CustomUser')
     
     # Try to get an admin user to set as creator
     try:
-        admin_user = User.objects.filter(is_superuser=True).first()
+        admin_user = CustomUser.objects.filter(is_superuser=True).first()
     except:
         # If no admin exists or there's an error, try to get any user
         try:
-            admin_user = User.objects.first()
+            admin_user = CustomUser.objects.first()
         except:
-            # If still no user, return without creating patterns
-            return
+            # If still no user, proceed without a user reference
+            admin_user = None
     
     # Define default patterns
     default_patterns = [
@@ -56,14 +55,20 @@ def create_default_patterns(apps, schema_editor):
         if WinningPattern.objects.filter(name=pattern_data['name']).exists():
             continue
             
-        WinningPattern.objects.create(
-            id=uuid.uuid4(),
-            name=pattern_data['name'],
-            display_name=pattern_data['display_name'],
-            positions=pattern_data['positions'],
-            is_active=True,
-            created_by=admin_user
-        )
+        # Create pattern with or without a creator user
+        pattern_kwargs = {
+            'id': uuid.uuid4(),
+            'name': pattern_data['name'],
+            'display_name': pattern_data['display_name'],
+            'positions': pattern_data['positions'],
+            'is_active': True,
+        }
+        
+        # Only add created_by if we have a valid user
+        if admin_user is not None:
+            pattern_kwargs['created_by'] = admin_user
+            
+        WinningPattern.objects.create(**pattern_kwargs)
 
 def reverse_migration(apps, schema_editor):
     # Delete default patterns if needed
