@@ -18,16 +18,17 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('email', 'first_name', 'last_name', 'is_email_verified', 'uuid', 'is_staff', 'is_active')
-        read_only_fields = ('is_email_verified', 'uuid')
+        fields = ['id', 'email', 'first_name', 'last_name', 'is_email_verified', 'phone_number']
+        read_only_fields = ['id', 'is_email_verified']
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    phone_number = serializers.CharField(max_length=20, required=False)
     
     class Meta:
         ref_name = 'CustomRegisterSerializer'
         model = User
-        fields = ('email', 'password', 'first_name', 'last_name')
+        fields = ('email', 'password', 'first_name', 'last_name', 'phone_number')
     
     def create(self, validated_data):
         try:
@@ -39,6 +40,7 @@ class RegisterSerializer(serializers.ModelSerializer):
                 password=validated_data['password'],
                 first_name=validated_data.get('first_name', ''),
                 last_name=validated_data.get('last_name', ''),
+                phone_number=validated_data.get('phone_number', ''),
                 verification_code=verification_code,
                 verification_code_created_at=timezone.now(),
                 is_email_verified=settings.BYPASS_EMAIL_VERIFICATION

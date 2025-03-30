@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import exceptions
+from users.serializers import UserSerializer
 
 User = get_user_model()
 
@@ -24,7 +25,8 @@ class EmailVerificationBackend(ModelBackend):
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
-    Custom token serializer that checks if the user's email is verified.
+    Custom token serializer that checks if the user's email is verified
+    and includes user data in the response.
     """
     def validate(self, attrs):
         # Check if user exists and get user object
@@ -36,5 +38,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 'Email not verified. Please check your inbox for the verification email or request a new one.'
             )
             
-        # Call parent validate method
-        return super().validate(attrs)
+        # Call parent validate method to get tokens
+        data = super().validate(attrs)
+        
+        # Add user data to response
+        user = self.user
+        user_serializer = UserSerializer(user)
+        data['user'] = user_serializer.data
+        
+        return data

@@ -44,6 +44,7 @@ class CustomUser(AbstractUser):
     verification_code = models.CharField(max_length=6, blank=True, null=True)
     verification_code_created_at = models.DateTimeField(null=True, blank=True)
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
