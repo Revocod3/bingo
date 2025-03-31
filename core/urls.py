@@ -44,6 +44,7 @@ router.register(r'test-coins', TestCoinBalanceViewSet)
 router.register(r'card-purchases', CardPurchaseViewSet)
 router.register(r'winning-patterns', WinningPatternViewSet)
 router.register(r'deposits', DepositRequestViewSet, basename='deposits')
+router.register(r'test-coins/deposit', DepositRequestViewSet, basename='deposit-request')
 
 
 auth_urlpatterns = [
