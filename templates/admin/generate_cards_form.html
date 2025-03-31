@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <h2>Generate Bingo Cards</h2>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="event_id">Event:</label>
+                    <select name="event_id" id="event_id" required>
+                        <option value="">---------</option>
+                        {% for event in events %}
+                        <option value="{{ event.id }}">{{ event.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="quantity">Number of Cards:</label>
+                    <input type="number" name="quantity" id="quantity" min="1" max="100" value="1" required>
+                </div>
+            </div>
+        </fieldset>
+
+        <div class="submit-row">
+            <input type="submit" value="Generate Cards" class="default" name="_generate">
+        </div>
+    </form>
+</div>
+{% endblock %}

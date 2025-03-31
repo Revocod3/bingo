@@ -10,7 +10,8 @@ from .serializers import (
     TestCoinBalanceSerializer, CardPurchaseSerializer,
     CardPurchaseRequestSerializer, BingoClaimRequestSerializer, BingoClaimResponseSerializer,
     WinningPatternSerializer, DepositRequestSerializer, DepositRequestCreateSerializer,
-    DepositConfirmSerializer, DepositAdminActionSerializer, CardPriceUpdateSerializer, SystemConfigSerializer
+    DepositConfirmSerializer, DepositAdminActionSerializer, CardPriceUpdateSerializer, SystemConfigSerializer,
+    EmailCardsSerializer
 )
 import random
 import logging
@@ -21,6 +22,18 @@ import json
 from django.db import transaction
 from django.core.cache import cache
 import uuid
+from django.http import HttpResponse
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from io import BytesIO
+from django.core.mail import EmailMessage
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.conf import settings
+from .permissions import IsSellerPermission
 
 logger = logging.getLogger(__name__)
 
@@ -546,11 +559,203 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                 "card_price": config.card_price
             })
         except Exception as e:
-            logger.error(f"Error updating card price: {str(e)}", exc_info=True)
+            logger.error(f"Error updating card price: {str(e)}")
             return Response({
                 "success": False,
                 "message": f"Failed to update price: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsSellerPermission])
+    def generate_bulk(self, request):
+        """Generate multiple bingo cards for sellers"""
+        quantity = request.data.get('quantity', 1)
+        event_id = request.data.get('event_id')
+        
+        # Validate input
+        if not event_id:
+            return Response({"error": "event_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if not isinstance(quantity, int) or quantity < 1 or quantity > 100:
+            return Response({"error": "quantity must be a number between 1 and 100"}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            event = Event.objects.get(id=event_id)
+        except Event.DoesNotExist:
+            return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Generate multiple cards
+        cards = []
+        for _ in range(quantity):
+            card_numbers = self._generate_bingo_card_numbers()
+            cards.append({
+                'numbers': card_numbers,
+                'event_id': event_id
+            })
+        
+        # Return the generated cards
+        return Response({
+            "success": True,
+            "cards": cards,
+            "message": f"Successfully generated {quantity} cards"
+        })
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsSellerPermission])
+    def download_pdf(self, request):
+        """Download generated cards as PDF"""
+        cards = request.data.get('cards', [])
+        event_id = request.data.get('event_id')
+        
+        if not cards or not event_id:
+            return Response({"error": "cards and event_id are required"}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            event = Event.objects.get(id=event_id)
+        except Event.DoesNotExist:
+            return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Generate PDF with cards
+        pdf = self._generate_cards_pdf(cards, event)
+        
+        # Create response with PDF
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="bingo_cards_{event.name}.pdf"'
+        
+        return response
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsSellerPermission])
+    def email_cards(self, request):
+        """Send generated cards to an email"""
+        serializer = EmailCardsSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        email = serializer.validated_data['email']
+        event_id = serializer.validated_data['event_id']
+        cards = serializer.validated_data['cards']
+        subject = serializer.validated_data['subject']
+        message = serializer.validated_data['message']
+        
+        try:
+            event = Event.objects.get(id=event_id)
+        except Event.DoesNotExist:
+            return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Generate PDF with cards
+        pdf = self._generate_cards_pdf(cards, event)
+        
+        # Create HTML content
+        html_message = render_to_string(
+            'email/bingo_cards_email.html',
+            {
+                'event_name': event.name,
+                'event_date': event.start_date.strftime('%Y-%m-%d %H:%M'),
+                'event_description': event.description,
+                'message': message,
+                'cards_count': len(cards)
+            }
+        )
+        
+        # Send email with PDF attached
+        try:
+            email_message = EmailMessage(
+                subject=subject,
+                body=html_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[email]
+            )
+            
+            # Set HTML content type
+            email_message.content_subtype = "html"
+            
+            # Attach the PDF
+            email_message.attach(f'bingo_cards_{event.name}.pdf', pdf, 'application/pdf')
+            email_message.send()
+            
+            return Response({
+                "success": True,
+                "message": f"Bingo cards sent to {email} successfully"
+            })
+            
+        except Exception as e:
+            logger.error(f"Error sending bingo cards email: {str(e)}", exc_info=True)
+            return Response({
+                "success": False,
+                "message": f"Failed to send email: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _generate_cards_pdf(self, cards, event):
+        """Generate a PDF with the given cards"""
+        buffer = BytesIO()
+        
+        # Create the PDF object
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        
+        # For each card, create a table representation
+        for i, card in enumerate(cards):
+            elements.append(self._create_card_table(card['numbers'], i+1))
+            
+            # Add some space between cards
+            if i < len(cards) - 1:
+                elements.append(Spacer(1, 0.5*inch))
+        
+        # Build the PDF
+        doc.build(elements)
+        
+        # Get the value of the BytesIO buffer
+        pdf = buffer.getvalue()
+        buffer.close()
+        
+        return pdf
+    
+    def _create_card_table(self, card_numbers, card_number):
+        """Create a table representation of a bingo card for PDF"""
+        styles = getSampleStyleSheet()
+        
+        # Create header for the card
+        header = Paragraph(f"BINGO CARD #{card_number}", styles['Heading1'])
+        
+        # Create the data for the table
+        table_data = [['B', 'I', 'N', 'G', 'O']]
+        
+        # Parse the card in standard format
+        from .win_patterns import parse_card_numbers
+        flat_card = parse_card_numbers(card_numbers)
+        
+        # Organize the flat card into a 5x5 grid
+        for row in range(5):
+            table_row = []
+            for col in range(5):
+                pos = row * 5 + col
+                if pos < len(flat_card):
+                    value = flat_card[pos]
+                    # For the free space in the middle
+                    if value == 0 and row == 2 and col == 2:
+                        table_row.append("FREE")
+                    else:
+                        table_row.append(str(value))
+                else:
+                    table_row.append("")
+            table_data.append(table_row)
+        
+        # Create the table
+        table = Table(table_data, colWidths=[0.8*inch]*5, rowHeights=[0.4*inch] + [0.8*inch]*5)
+        
+        # Style the table
+        table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BACKGROUND', (0, 0), (4, 0), colors.lightgrey),
+            ('FONTSIZE', (0, 0), (-1, -1), 14),
+            ('FONTSIZE', (0, 0), (4, 0), 16),
+            ('FONTNAME', (0, 0), (4, 0), 'Helvetica-Bold'),
+        ]))
+        
+        # Return both the header and the table
+        return [header, Spacer(1, 0.2*inch), table]
 
 class NumberViewSet(viewsets.ModelViewSet):
     queryset = Number.objects.all()

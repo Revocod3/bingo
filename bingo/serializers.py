@@ -112,3 +112,10 @@ class SystemConfigSerializer(serializers.ModelSerializer):
 
 class CardPriceUpdateSerializer(serializers.Serializer):
     card_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0.01)
+
+class EmailCardsSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    event_id = serializers.UUIDField(required=True)
+    cards = serializers.ListField(child=serializers.DictField(), required=True)
+    subject = serializers.CharField(required=False, default="Cartones de Bingo")
+    message = serializers.CharField(required=False, default="Aquí están los cartones de bingo generados para el evento.")

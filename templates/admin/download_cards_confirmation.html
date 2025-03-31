@@ -1,0 +1,21 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module aligned">
+        <h2>Download Generated Cards</h2>
+        <p>{{ card_count }} cards have been generated successfully.</p>
+        <p>What would you like to do next?</p>
+    </div>
+
+    <div class="submit-row">
+        <form method="post">
+            {% csrf_token %}
+            <input type="submit" value="Download as PDF" class="default" name="_download">
+        </form>
+        <a href="{% url 'admin:email-cards' %}" class="button">Send via Email</a>
+        <a href="{% url 'admin:bingo_bingocard_changelist' %}" class="button">Back to Card List</a>
+    </div>
+</div>
+{% endblock %}

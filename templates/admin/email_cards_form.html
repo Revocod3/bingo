@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <h2>Email {{ card_count }} Bingo Cards</h2>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="email">Recipient Email:</label>
+                    <input type="email" name="email" id="email" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="subject">Subject:</label>
+                    <input type="text" name="subject" id="subject" value="Your Bingo Cards">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="message">Message:</label>
+                    <textarea name="message" id="message" rows="4" cols="40">Here are your bingo cards for the event.</textarea>
+                </div>
+            </div>
+        </fieldset>
+
+        <div class="submit-row">
+            <input type="submit" value="Send Email" class="default" name="_send">
+            <a href="{% url 'admin:download-cards-pdf' %}" class="button">Back to Download</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
