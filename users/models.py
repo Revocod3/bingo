@@ -46,6 +46,7 @@ class CustomUser(AbstractUser):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     is_seller = models.BooleanField(default=False)
+    date_joined = models.DateTimeField(auto_now_add=True)
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
