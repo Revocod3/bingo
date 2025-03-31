@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DepositRequest, Event, BingoCard, Number, TestCoinBalance, CardPurchase, WinningPattern
+from .models import DepositRequest, Event, BingoCard, Number, SystemConfig, TestCoinBalance, CardPurchase, WinningPattern
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
@@ -103,3 +103,12 @@ class DepositConfirmSerializer(serializers.Serializer):
 
 class DepositAdminActionSerializer(serializers.Serializer):
     admin_notes = serializers.CharField(required=False, allow_blank=True)
+
+class SystemConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SystemConfig
+        fields = ['card_price', 'last_updated']
+        read_only_fields = ['last_updated']
+
+class CardPriceUpdateSerializer(serializers.Serializer):
+    card_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0.01)

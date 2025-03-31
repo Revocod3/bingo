@@ -4,13 +4,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
-from .models import Event, BingoCard, Number, TestCoinBalance, CardPurchase, WinningPattern, DepositRequest
+from .models import Event, BingoCard, Number, TestCoinBalance, CardPurchase, WinningPattern, DepositRequest, SystemConfig
 from .serializers import (
     EventSerializer, BingoCardSerializer, NumberSerializer,
     TestCoinBalanceSerializer, CardPurchaseSerializer,
     CardPurchaseRequestSerializer, BingoClaimRequestSerializer, BingoClaimResponseSerializer,
     WinningPatternSerializer, DepositRequestSerializer, DepositRequestCreateSerializer,
-    DepositConfirmSerializer, DepositAdminActionSerializer
+    DepositConfirmSerializer, DepositAdminActionSerializer, CardPriceUpdateSerializer, SystemConfigSerializer
 )
 import random
 import logging
@@ -191,8 +191,8 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         except Event.DoesNotExist:
             return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
         
-        # Cost per card - could be dynamic based on event
-        cost_per_card = 10
+        # Get cost per card from system configuration
+        cost_per_card = float(SystemConfig.get_card_price())
         total_cost = cost_per_card * quantity
         
         # Use a Redis lock to prevent race conditions
@@ -518,6 +518,38 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             return Response({
                 'success': False,
                 'message': f"Error getting card status: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get', 'post'], permission_classes=[IsAuthenticated])
+    def card_price(self, request):
+        """Get or update the price of bingo cards (staff only for updates)"""
+        if request.method == 'GET':
+            # Anyone can get the current price
+            price = SystemConfig.get_card_price()
+            return Response({"card_price": price})
+        
+        # For POST, only staff can update the price
+        if not request.user.is_staff:
+            return Response({"error": "Staff permissions required"}, 
+                            status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = CardPriceUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            price = serializer.validated_data['card_price']
+            config = SystemConfig.update_card_price(price, request.user)
+            return Response({
+                "success": True,
+                "message": f"Card price updated to {price}",
+                "card_price": config.card_price
+            })
+        except Exception as e:
+            logger.error(f"Error updating card price: {str(e)}", exc_info=True)
+            return Response({
+                "success": False,
+                "message": f"Failed to update price: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class NumberViewSet(viewsets.ModelViewSet):

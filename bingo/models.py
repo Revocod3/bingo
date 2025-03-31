@@ -167,3 +167,32 @@ class WinningPattern(models.Model):
 
     def __str__(self):
         return self.display_name
+
+class SystemConfig(models.Model):
+    """System configuration settings"""
+    card_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.20,
+                                    verbose_name="Card Price")
+    last_updated = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "System Configuration"
+        verbose_name_plural = "System Configuration"
+    
+    @classmethod
+    def get_card_price(cls):
+        """Get the current card price, or create with default if none exists"""
+        config, created = cls.objects.get_or_create(pk=1)
+        return config.card_price
+    
+    @classmethod
+    def update_card_price(cls, price, user=None):
+        """Update the card price"""
+        config, created = cls.objects.get_or_create(pk=1)
+        config.card_price = price
+        config.updated_by = user
+        config.save()
+        return config
+    
+    def __str__(self):
+        return f"System Configuration (Card Price: {self.card_price})"
