@@ -280,7 +280,8 @@ class BingoConsumer(AsyncWebsocketConsumer):
                 'id': event.id,
                 'name': event.name,
                 'prize': str(event.prize),
-                'start_date': event.start.isoformat(),  # Changed from start to start_date
+                'start_date': event.start.isoformat(),
+                'is_live': event.is_live,  # Include is_live status
                 'called_numbers': list(called_numbers.values('id', 'value', 'called_at'))
             }
         except Event.DoesNotExist:

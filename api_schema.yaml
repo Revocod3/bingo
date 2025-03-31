@@ -733,9 +733,11 @@ components:
         end_date:
           type: string
           format: date-time
+        is_live:
+          type: boolean
+          description: Indicates if the event is currently live
         creator:
           type: integer
-          description: User ID of the creator
       required:
         - name
         - start_date

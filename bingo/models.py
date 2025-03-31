@@ -14,6 +14,7 @@ class Event(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    is_live = models.BooleanField(default=False)
     allowed_patterns = models.ManyToManyField('WinningPattern', blank=True, related_name='events')
 
     def __str__(self):
