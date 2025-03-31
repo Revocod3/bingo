@@ -4,12 +4,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
-from .models import Event, BingoCard, Number, TestCoinBalance, CardPurchase, WinningPattern
+from .models import Event, BingoCard, Number, TestCoinBalance, CardPurchase, WinningPattern, DepositRequest
 from .serializers import (
     EventSerializer, BingoCardSerializer, NumberSerializer,
     TestCoinBalanceSerializer, CardPurchaseSerializer,
     CardPurchaseRequestSerializer, BingoClaimRequestSerializer, BingoClaimResponseSerializer,
-    WinningPatternSerializer
+    WinningPatternSerializer, DepositRequestSerializer, DepositRequestCreateSerializer,
+    DepositConfirmSerializer, DepositAdminActionSerializer
 )
 import random
 import logging
@@ -803,3 +804,199 @@ class WinningPatternViewSet(viewsets.ModelViewSet):
                 {"error": f"Could not visualize pattern: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class DepositRequestViewSet(viewsets.ModelViewSet):
+    queryset = DepositRequest.objects.all()
+    serializer_class = DepositRequestSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        # Staff can see all requests, users only see their own
+        if user.is_staff:
+            return DepositRequest.objects.all()
+        return DepositRequest.objects.filter(user=user)
+    
+    def get_serializer_class(self):
+        if self.action == 'request_deposit':
+            return DepositRequestCreateSerializer
+        if self.action == 'confirm_deposit':
+            return DepositConfirmSerializer
+        if self.action in ['approve', 'reject']:
+            return DepositAdminActionSerializer
+        return DepositRequestSerializer
+    
+    @action(detail=False, methods=['post'])
+    def request_deposit(self, request):
+        """Initiate a deposit request and get a unique code"""
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        amount = serializer.validated_data['amount']
+        
+        # Generate unique code
+        unique_code = DepositRequest.generate_unique_code()
+        
+        # Create deposit request
+        deposit = DepositRequest.objects.create(
+            user=request.user,
+            amount=amount,
+            unique_code=unique_code,
+            status='pending'
+        )
+        
+        # Return bank details and unique code
+        return Response({
+            'success': True,
+            'deposit_id': deposit.id,
+            'amount': amount,
+            'unique_code': unique_code,
+            'bank_details': {
+                'bank_name': 'Banco Nacional de Costa Rica',
+                'account_number': 'CR123456789',
+                'account_holder': 'BINGO App',
+                'instructions': 'Incluya el código único en el asunto o descripción de la transferencia.'
+            },
+            'message': 'Por favor realice la transferencia y luego confirme con el número de referencia.'
+        })
+    
+    @action(detail=False, methods=['post'])
+    def confirm_deposit(self, request):
+        """Confirm deposit with transaction reference"""
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        unique_code = serializer.validated_data['unique_code']
+        reference = serializer.validated_data['reference']
+        
+        try:
+            deposit = DepositRequest.objects.get(
+                unique_code=unique_code,
+                user=request.user,
+                status='pending'
+            )
+            
+            # Update reference
+            deposit.reference = reference
+            deposit.save()
+            
+            return Response({
+                'success': True,
+                'deposit_id': deposit.id,
+                'status': 'pending',
+                'message': 'Su solicitud de recarga está siendo procesada. Le notificaremos cuando sea aprobada.'
+            })
+            
+        except DepositRequest.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'No se encontró una solicitud de depósito pendiente con ese código.'
+            }, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def approve(self, request, pk=None):
+        """Approve a deposit request (staff only)"""
+        if not request.user.is_staff:
+            return Response({
+                'success': False,
+                'message': 'Solo el personal administrativo puede aprobar depósitos.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            deposit = self.get_object()
+            
+            if deposit.status != 'pending':
+                return Response({
+                    'success': False,
+                    'message': f'Esta solicitud ya ha sido {deposit.get_status_display().lower()}.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            # Update admin notes if provided
+            if 'admin_notes' in serializer.validated_data:
+                deposit.admin_notes = serializer.validated_data['admin_notes']
+            
+            # Process approval
+            deposit, balance = DepositRequest.approve(deposit.id, request.user)
+            
+            return Response({
+                'success': True,
+                'deposit_id': deposit.id,
+                'amount': deposit.amount,
+                'new_balance': balance.balance,
+                'message': f'Depósito de {deposit.amount} monedas aprobado exitosamente.'
+            })
+            
+        except Exception as e:
+            logger.error(f"Error approving deposit: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': f'Error al aprobar el depósito: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def reject(self, request, pk=None):
+        """Reject a deposit request (staff only)"""
+        if not request.user.is_staff:
+            return Response({
+                'success': False,
+                'message': 'Solo el personal administrativo puede rechazar depósitos.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            deposit = self.get_object()
+            
+            if deposit.status != 'pending':
+                return Response({
+                    'success': False,
+                    'message': f'Esta solicitud ya ha sido {deposit.get_status_display().lower()}.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            # Update admin notes if provided
+            if 'admin_notes' in serializer.validated_data:
+                deposit.admin_notes = serializer.validated_data['admin_notes']
+            
+            # Reject the deposit
+            deposit.status = 'rejected'
+            deposit.approved_by = request.user
+            deposit.save()
+            
+            return Response({
+                'success': True,
+                'deposit_id': deposit.id,
+                'message': 'Depósito rechazado.'
+            })
+            
+        except Exception as e:
+            logger.error(f"Error rejecting deposit: {str(e)}", exc_info=True)
+            return Response({
+                'success': False,
+                'message': f'Error al rechazar el depósito: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['get'])
+    def my_deposits(self, request):
+        """Get all deposit requests for the current user"""
+        deposits = DepositRequest.objects.filter(user=request.user)
+        serializer = DepositRequestSerializer(deposits, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def pending(self, request):
+        """Get all pending deposit requests (staff only)"""
+        if not request.user.is_staff:
+            return Response({
+                'success': False,
+                'message': 'Solo el personal administrativo puede ver depósitos pendientes.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        deposits = DepositRequest.objects.filter(status='pending')
+        serializer = DepositRequestSerializer(deposits, many=True)
+        return Response(serializer.data)

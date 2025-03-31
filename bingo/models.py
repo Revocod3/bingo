@@ -2,6 +2,8 @@ from django.db import models, transaction
 from django.db.models import F
 from django.conf import settings
 import uuid
+import string
+import random
 
 User = settings.AUTH_USER_MODEL
 
@@ -75,6 +77,64 @@ class TestCoinBalance(models.Model):
         balance.save()
         balance.refresh_from_db()
         return True, balance
+
+class DepositRequest(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Pendiente'),
+        ('approved', 'Aprobado'),
+        ('rejected', 'Rechazado'),
+    )
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='deposit_requests')
+    amount = models.PositiveIntegerField()
+    unique_code = models.CharField(max_length=10, unique=True)
+    reference = models.CharField(max_length=50, blank=True, null=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_deposits')
+    admin_notes = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['unique_code']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.email}: {self.amount} coins - {self.get_status_display()}"
+    
+    @staticmethod
+    def generate_unique_code():
+        """Generate a random, unique code for the deposit"""
+        while True:
+            # Generate a code with 8 characters (letters and numbers)
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+            # Check if code already exists
+            if not DepositRequest.objects.filter(unique_code=code).exists():
+                return code
+    
+    @classmethod
+    @transaction.atomic
+    def approve(cls, deposit_id, staff_user):
+        """Approve deposit and update user balance"""
+        deposit = cls.objects.select_for_update().get(id=deposit_id, status='pending')
+        
+        # Update balance
+        balance, created = TestCoinBalance.objects.select_for_update().get_or_create(
+            user=deposit.user, defaults={"balance": 0}
+        )
+        balance.balance += deposit.amount
+        balance.save()
+        
+        # Update deposit status
+        deposit.status = 'approved'
+        deposit.approved_by = staff_user
+        deposit.save()
+        
+        return deposit, balance
 
 class CardPurchase(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='card_purchases')

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Event, BingoCard, Number, TestCoinBalance, CardPurchase, WinningPattern
+from .models import DepositRequest, Event, BingoCard, Number, TestCoinBalance, CardPurchase, WinningPattern
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
@@ -82,3 +82,24 @@ class WinningPatternSerializer(serializers.ModelSerializer):
 class WinningPatternCreateSerializer(WinningPatternSerializer):
     class Meta(WinningPatternSerializer.Meta):
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+class DepositRequestSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    class Meta:
+        model = DepositRequest
+        fields = ['id', 'user', 'amount', 'unique_code', 'reference', 
+                  'status', 'status_display', 'created_at', 'updated_at', 
+                  'approved_by', 'admin_notes']
+        read_only_fields = ['id', 'unique_code', 'status', 'created_at', 
+                           'updated_at', 'approved_by']
+
+class DepositRequestCreateSerializer(serializers.Serializer):
+    amount = serializers.IntegerField(min_value=1, max_value=1000)
+
+class DepositConfirmSerializer(serializers.Serializer):
+    unique_code = serializers.CharField(max_length=6)
+    reference = serializers.CharField(max_length=50)
+
+class DepositAdminActionSerializer(serializers.Serializer):
+    admin_notes = serializers.CharField(required=False, allow_blank=True)
