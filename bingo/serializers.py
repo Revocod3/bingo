@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import DepositRequest, Event, BingoCard, Number, PaymentMethod, RatesConfig, SystemConfig, TestCoinBalance, CardPurchase, WinningPattern
+from decimal import Decimal
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
@@ -100,7 +101,8 @@ class DepositRequestCreateSerializer(serializers.Serializer):
 class DepositConfirmSerializer(serializers.Serializer):
     unique_code = serializers.CharField(max_length=8)
     reference = serializers.CharField(max_length=50)
-    payment_method = serializers.ChoiceField(required=False, allow_blank=True, choices=PaymentMethod.objects.values_list('id', flat=True))
+    # Fix database access during initialization by using a callable instead
+    payment_method = serializers.UUIDField(required=False, allow_null=True)
 
 class DepositAdminActionSerializer(serializers.Serializer):
     admin_notes = serializers.CharField(required=False, allow_blank=True)
@@ -112,7 +114,8 @@ class SystemConfigSerializer(serializers.ModelSerializer):
         read_only_fields = ['last_updated']
 
 class CardPriceUpdateSerializer(serializers.Serializer):
-    card_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0.01)
+    # Fix min_value to use Decimal instance
+    card_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
 
 class EmailCardsSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)

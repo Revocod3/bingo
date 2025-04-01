@@ -1107,7 +1107,7 @@ class DepositRequestViewSet(viewsets.ModelViewSet):
         
         unique_code = serializer.validated_data['unique_code']
         reference = serializer.validated_data['reference']
-        payment_method = serializer.validated_data.get('payment_method', '')
+        payment_method_id = serializer.validated_data.get('payment_method')
         
         try:
             deposit = DepositRequest.objects.get(
@@ -1116,16 +1116,27 @@ class DepositRequestViewSet(viewsets.ModelViewSet):
                 status='pending'
             )
             
-            # Update reference and payment method
+            # Update reference and payment method if provided
             deposit.reference = reference
-            deposit.payment_method = payment_method
+            
+            # Validate payment method exists if provided
+            if payment_method_id:
+                try:
+                    payment_method = PaymentMethod.objects.get(id=payment_method_id)
+                    deposit.payment_method = str(payment_method_id)
+                except PaymentMethod.DoesNotExist:
+                    return Response({
+                        'success': False,
+                        'message': 'El método de pago especificado no existe.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
             deposit.save()
             
             return Response({
                 'success': True,
                 'deposit_id': deposit.id,
                 'status': 'pending',
-                'payment_method': payment_method,
+                'payment_method': payment_method_id,
                 'message': 'Su solicitud de recarga está siendo procesada. Le notificaremos cuando sea aprobada.'
             })
             
