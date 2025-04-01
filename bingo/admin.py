@@ -1,12 +1,22 @@
 from django.contrib import admin
-from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import path
 from django.utils.html import format_html
 from .models import CardPurchase, Event, BingoCard, Number, PaymentMethod, TestCoinBalance, Wallet, WinningPattern, DepositRequest, SystemConfig
 from .views import BingoCardViewSet
 
+# Register models using custom admin classes
+admin.site.register(Event)
+admin.site.register(Number)
+admin.site.register(WinningPattern)
+admin.site.register(Wallet)
+admin.site.register(TestCoinBalance)
+admin.site.register(CardPurchase)
+admin.site.register(DepositRequest)
+admin.site.register(SystemConfig)
+
 # Custom BingoCard admin with seller functionality
+@admin.register(BingoCard)
 class BingoCardAdmin(admin.ModelAdmin):
     list_display = ('id', 'event', 'user', 'is_winner', 'created_at')
     list_filter = ('event', 'is_winner', 'created_at')
@@ -127,17 +137,6 @@ class BingoCardAdmin(admin.ModelAdmin):
         return redirect('admin:generate-cards')
     
     generate_cards_action.short_description = "Generate new bingo cards"
-
-# Register models using custom admin classes
-admin.site.register(BingoCard, BingoCardAdmin)
-admin.site.register(Event)
-admin.site.register(Number)
-admin.site.register(WinningPattern)
-admin.site.register(Wallet)
-admin.site.register(TestCoinBalance)
-admin.site.register(CardPurchase)
-admin.site.register(DepositRequest)
-admin.site.register(SystemConfig)
 
 @admin.register(PaymentMethod)
 class PaymentMethodAdmin(admin.ModelAdmin):
