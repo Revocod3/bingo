@@ -229,7 +229,7 @@ class RatesConfig(models.Model):
     @classmethod
     def get_current(cls):
         """Get the current rates configuration or create a default one"""
-        rates_config, created = cls.objects.get_or_create(
+        rates_config, _ = cls.objects.get_or_create(
             pk=1,
             defaults={'rates': {}, 'description': 'Configuración de tasas predeterminada'}
         )
