@@ -210,3 +210,27 @@ class PaymentMethod(models.Model):
 
     def __str__(self):
         return self.payment_method
+
+class RatesConfig(models.Model):
+    """
+    Model to store exchange rates configuration
+    """
+    rates = models.JSONField(default=dict)
+    description = models.CharField(max_length=255, blank=True, null=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Configuración de Tasas"
+        verbose_name_plural = "Configuración de Tasas"
+    
+    def __str__(self):
+        return f"Configuración de Tasas (Actualizado: {self.last_updated.strftime('%Y-%m-%d %H:%M')})"
+    
+    @classmethod
+    def get_current(cls):
+        """Get the current rates configuration or create a default one"""
+        rates_config, created = cls.objects.get_or_create(
+            pk=1,
+            defaults={'rates': {}, 'description': 'Configuración de tasas predeterminada'}
+        )
+        return rates_config

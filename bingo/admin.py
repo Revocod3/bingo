@@ -2,7 +2,9 @@ from django.contrib import admin
 from django.shortcuts import render, redirect
 from django.urls import path
 from django.utils.html import format_html
-from .models import CardPurchase, Event, BingoCard, Number, PaymentMethod, TestCoinBalance, Wallet, WinningPattern, DepositRequest, SystemConfig
+import json
+from django.contrib import messages
+from .models import CardPurchase, Event, BingoCard, Number, PaymentMethod, TestCoinBalance, Wallet, WinningPattern, DepositRequest, SystemConfig, RatesConfig
 from .views import BingoCardViewSet
 
 # Register models using custom admin classes
@@ -158,3 +160,26 @@ class PaymentMethodAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+@admin.register(RatesConfig)
+class RatesConfigAdmin(admin.ModelAdmin):
+    list_display = ('id', 'description', 'last_updated')
+    readonly_fields = ('last_updated',)
+    fieldsets = (
+        (None, {
+            'fields': ('rates', 'description')
+        }),
+        ('Metadata', {
+            'fields': ('last_updated',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        try:
+            # Asegurar que el campo rates es JSON válido
+            if isinstance(obj.rates, str):
+                obj.rates = json.loads(obj.rates)
+            super().save_model(request, obj, form, change)
+        except json.JSONDecodeError:
+            messages.error(request, "El campo de tasas no contiene JSON válido")

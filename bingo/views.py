@@ -4,14 +4,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.db.models import Q
-from .models import Event, BingoCard, Number, PaymentMethod, TestCoinBalance, CardPurchase, WinningPattern, DepositRequest, SystemConfig
+from .models import Event, BingoCard, Number, PaymentMethod, TestCoinBalance, CardPurchase, WinningPattern, DepositRequest, SystemConfig, RatesConfig
 from .serializers import (
     EventSerializer, BingoCardSerializer, NumberSerializer, PaymentMethodCreateUpdateSerializer, PaymentMethodSerializer,
     TestCoinBalanceSerializer, CardPurchaseSerializer,
     CardPurchaseRequestSerializer, BingoClaimRequestSerializer, BingoClaimResponseSerializer,
     WinningPatternSerializer, DepositRequestSerializer, DepositRequestCreateSerializer,
     DepositConfirmSerializer, DepositAdminActionSerializer, CardPriceUpdateSerializer, SystemConfigSerializer,
-    EmailCardsSerializer
+    EmailCardsSerializer, RatesConfigSerializer, RatesUpdateSerializer
 )
 import random
 import logging
@@ -1263,3 +1263,48 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
         payment_methods = PaymentMethod.objects.filter(is_active=True)
         serializer = self.get_serializer(payment_methods, many=True)
         return Response(serializer.data)
+
+class RatesConfigViewSet(viewsets.ModelViewSet):
+    queryset = RatesConfig.objects.all()
+    serializer_class = RatesConfigSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'update_rates':
+            return RatesUpdateSerializer
+        return RatesConfigSerializer
+    
+    def get_permissions(self):
+        # Solo administradores pueden modificar las tasas
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'update_rates']:
+            return [IsAuthenticated(), IsAdminUser()]
+        return [IsAuthenticated()]
+    
+    @action(detail=False, methods=['get'])
+    def current(self, request):
+        """Obtener la configuración de tasas actual"""
+        rates_config = RatesConfig.get_current()
+        serializer = self.get_serializer(rates_config)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAdminUser])
+    def update_rates(self, request):
+        """Actualizar la configuración de tasas"""
+        serializer = RatesUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        rates_config = RatesConfig.get_current()
+        rates_config.rates = serializer.validated_data['rates']
+        
+        if 'description' in serializer.validated_data:
+            rates_config.description = serializer.validated_data['description']
+            
+        rates_config.save()
+        
+        return Response({
+            'success': True,
+            'message': 'Tasas actualizadas correctamente',
+            'rates': rates_config.rates,
+            'last_updated': rates_config.last_updated
+        })

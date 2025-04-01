@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DepositRequest, Event, BingoCard, Number, PaymentMethod, SystemConfig, TestCoinBalance, CardPurchase, WinningPattern
+from .models import DepositRequest, Event, BingoCard, Number, PaymentMethod, RatesConfig, SystemConfig, TestCoinBalance, CardPurchase, WinningPattern
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
@@ -131,3 +131,13 @@ class PaymentMethodCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentMethod
         fields = ['payment_method', 'details', 'is_active']
+
+class RatesConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RatesConfig
+        fields = ['id', 'rates', 'description', 'last_updated']
+        read_only_fields = ['id', 'last_updated']
+
+class RatesUpdateSerializer(serializers.Serializer):
+    rates = serializers.JSONField()
+    description = serializers.CharField(required=False, allow_blank=True)

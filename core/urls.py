@@ -24,7 +24,8 @@ from users.views import (
 from users.admin_commands import run_management_command
 from bingo.views import (
     DepositRequestViewSet, EventViewSet, BingoCardViewSet, NumberViewSet, 
-    TestCoinBalanceViewSet, CardPurchaseViewSet, WinningPatternViewSet, PaymentMethodViewSet
+    TestCoinBalanceViewSet, CardPurchaseViewSet, WinningPatternViewSet, 
+    PaymentMethodViewSet, RatesConfigViewSet
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -46,6 +47,7 @@ router.register(r'winning-patterns', WinningPatternViewSet)
 router.register(r'deposits', DepositRequestViewSet, basename='deposits')
 router.register(r'test-coins/deposit', DepositRequestViewSet, basename='deposit-request')
 router.register(r'payment-methods', PaymentMethodViewSet, basename='payment-methods')
+router.register(r'rates', RatesConfigViewSet, basename='rates')
 
 
 auth_urlpatterns = [
