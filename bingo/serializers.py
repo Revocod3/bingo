@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DepositRequest, Event, BingoCard, Number, SystemConfig, TestCoinBalance, CardPurchase, WinningPattern
+from .models import DepositRequest, Event, BingoCard, Number, PaymentMethod, SystemConfig, TestCoinBalance, CardPurchase, WinningPattern
 
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
@@ -119,3 +119,14 @@ class EmailCardsSerializer(serializers.Serializer):
     cards = serializers.ListField(child=serializers.DictField(), required=True)
     subject = serializers.CharField(required=False, default="Cartones de Bingo")
     message = serializers.CharField(required=False, default="Aquí están los cartones de bingo generados para el evento.")
+
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentMethod
+        fields = ['id', 'payment_method', 'details', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class PaymentMethodCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentMethod
+        fields = ['payment_method', 'details', 'is_active']

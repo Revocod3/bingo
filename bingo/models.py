@@ -196,3 +196,17 @@ class SystemConfig(models.Model):
     
     def __str__(self):
         return f"System Configuration (Card Price: {self.card_price})"
+
+class PaymentMethod(models.Model):
+    """
+    Model to store payment method configurations that can be managed by admin
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    payment_method = models.CharField(max_length=50, unique=True)
+    details = models.JSONField(default=dict)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.payment_method

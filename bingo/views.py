@@ -2,11 +2,11 @@ from jsonschema import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.db.models import Q
-from .models import Event, BingoCard, Number, TestCoinBalance, CardPurchase, WinningPattern, DepositRequest, SystemConfig
+from .models import Event, BingoCard, Number, PaymentMethod, TestCoinBalance, CardPurchase, WinningPattern, DepositRequest, SystemConfig
 from .serializers import (
-    EventSerializer, BingoCardSerializer, NumberSerializer,
+    EventSerializer, BingoCardSerializer, NumberSerializer, PaymentMethodCreateUpdateSerializer, PaymentMethodSerializer,
     TestCoinBalanceSerializer, CardPurchaseSerializer,
     CardPurchaseRequestSerializer, BingoClaimRequestSerializer, BingoClaimResponseSerializer,
     WinningPatternSerializer, DepositRequestSerializer, DepositRequestCreateSerializer,
@@ -1236,4 +1236,27 @@ class DepositRequestViewSet(viewsets.ModelViewSet):
         
         deposits = DepositRequest.objects.filter(status='pending')
         serializer = DepositRequestSerializer(deposits, many=True)
+        return Response(serializer.data)
+
+class PaymentMethodViewSet(viewsets.ModelViewSet):
+    queryset = PaymentMethod.objects.all()
+    serializer_class = PaymentMethodSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return PaymentMethodCreateUpdateSerializer
+        return PaymentMethodSerializer
+    
+    def get_permissions(self):
+        # Only staff members can create, update or delete payment methods
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsAdminUser()]
+        return [IsAuthenticated()]
+    
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """Get all active payment methods"""
+        payment_methods = PaymentMethod.objects.filter(is_active=True)
+        serializer = self.get_serializer(payment_methods, many=True)
         return Response(serializer.data)

@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import path
 from django.utils.html import format_html
-from .models import CardPurchase, Event, BingoCard, Number, TestCoinBalance, Wallet, WinningPattern, DepositRequest, SystemConfig
+from .models import CardPurchase, Event, BingoCard, Number, PaymentMethod, TestCoinBalance, Wallet, WinningPattern, DepositRequest, SystemConfig
 from .views import BingoCardViewSet
 
 # Custom BingoCard admin with seller functionality
@@ -138,3 +138,24 @@ admin.site.register(TestCoinBalance)
 admin.site.register(CardPurchase)
 admin.site.register(DepositRequest)
 admin.site.register(SystemConfig)
+
+@admin.register(PaymentMethod)
+class PaymentMethodAdmin(admin.ModelAdmin):
+    list_display = ('payment_method', 'is_active', 'created_at', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('payment_method',)
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    fieldsets = (
+        (None, {
+            'fields': ('payment_method', 'is_active')
+        }),
+        ('Details', {
+            'fields': ('details',),
+            'description': 'Enter JSON format data for payment method details',
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
