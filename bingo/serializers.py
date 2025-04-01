@@ -98,7 +98,7 @@ class DepositRequestCreateSerializer(serializers.Serializer):
     amount = serializers.IntegerField(min_value=1, max_value=1000)
 
 class DepositConfirmSerializer(serializers.Serializer):
-    unique_code = serializers.CharField(max_length=6)
+    unique_code = serializers.CharField(max_length=8)
     reference = serializers.CharField(max_length=50)
 
 class DepositAdminActionSerializer(serializers.Serializer):
