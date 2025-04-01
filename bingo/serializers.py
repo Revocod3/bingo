@@ -100,6 +100,7 @@ class DepositRequestCreateSerializer(serializers.Serializer):
 class DepositConfirmSerializer(serializers.Serializer):
     unique_code = serializers.CharField(max_length=8)
     reference = serializers.CharField(max_length=50)
+    payment_method = serializers.ChoiceField(required=False, allow_blank=True, choices=PaymentMethod.objects.values_list('id', flat=True))
 
 class DepositAdminActionSerializer(serializers.Serializer):
     admin_notes = serializers.CharField(required=False, allow_blank=True)

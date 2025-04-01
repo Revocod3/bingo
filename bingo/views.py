@@ -1107,6 +1107,7 @@ class DepositRequestViewSet(viewsets.ModelViewSet):
         
         unique_code = serializer.validated_data['unique_code']
         reference = serializer.validated_data['reference']
+        payment_method = serializer.validated_data.get('payment_method', '')
         
         try:
             deposit = DepositRequest.objects.get(
@@ -1115,14 +1116,16 @@ class DepositRequestViewSet(viewsets.ModelViewSet):
                 status='pending'
             )
             
-            # Update reference
+            # Update reference and payment method
             deposit.reference = reference
+            deposit.payment_method = payment_method
             deposit.save()
             
             return Response({
                 'success': True,
                 'deposit_id': deposit.id,
                 'status': 'pending',
+                'payment_method': payment_method,
                 'message': 'Su solicitud de recarga está siendo procesada. Le notificaremos cuando sea aprobada.'
             })
             
