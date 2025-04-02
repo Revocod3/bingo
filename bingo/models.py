@@ -95,6 +95,7 @@ class DepositRequest(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_deposits')
     admin_notes = models.TextField(blank=True, null=True)
+    payment_method = models.CharField(max_length=50, blank=True, null=True)  # Add this field
     
     class Meta:
         ordering = ['-created_at']

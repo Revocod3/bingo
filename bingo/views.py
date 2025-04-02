@@ -1107,7 +1107,7 @@ class DepositRequestViewSet(viewsets.ModelViewSet):
         
         unique_code = serializer.validated_data['unique_code']
         reference = serializer.validated_data['reference']
-        payment_method_id = serializer.validated_data.get('payment_method')
+        payment_method_id = serializer.validated_data.get('payment_method')  # Get payment_method_id from serializer
         
         try:
             deposit = DepositRequest.objects.get(
@@ -1119,11 +1119,16 @@ class DepositRequestViewSet(viewsets.ModelViewSet):
             # Update reference and payment method if provided
             deposit.reference = reference
             
+            # Payment method details to include in response
+            payment_method_details = None
+            
             # Validate payment method exists if provided
             if payment_method_id:
                 try:
                     payment_method = PaymentMethod.objects.get(id=payment_method_id)
                     deposit.payment_method = str(payment_method_id)
+                    # Get payment method details for the response
+                    payment_method_details = PaymentMethodSerializer(payment_method).data
                 except PaymentMethod.DoesNotExist:
                     return Response({
                         'success': False,
@@ -1136,7 +1141,8 @@ class DepositRequestViewSet(viewsets.ModelViewSet):
                 'success': True,
                 'deposit_id': deposit.id,
                 'status': 'pending',
-                'payment_method': payment_method_id,
+                'payment_method_id': payment_method_id,
+                'payment_method_details': payment_method_details,  # Include full payment method details
                 'message': 'Su solicitud de recarga está siendo procesada. Le notificaremos cuando sea aprobada.'
             })
             
@@ -1241,16 +1247,36 @@ class DepositRequestViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def pending(self, request):
-        """Get all pending deposit requests (staff only)"""
+        """Get all pending deposit requests that have been confirmed (staff only)"""
         if not request.user.is_staff:
             return Response({
                 'success': False,
                 'message': 'Solo el personal administrativo puede ver depósitos pendientes.'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        deposits = DepositRequest.objects.filter(status='pending')
-        serializer = DepositRequestSerializer(deposits, many=True)
-        return Response(serializer.data)
+        # Filter for pending deposits with references (confirmed deposits)
+        deposits = DepositRequest.objects.filter(status='pending', reference__isnull=False)
+        
+        # Create serializer context with request
+        context = {'request': request}
+        
+        # Use serializer that includes nested relationships
+        serializer = DepositRequestSerializer(deposits, many=True, context=context)
+        
+        # Get the serialized data
+        data = serializer.data
+        
+        # For each deposit, add the payment method details if available
+        for deposit in data:
+            # If there's a payment_method in the deposit, fetch its details
+            if 'payment_method' in deposit and deposit['payment_method']:
+                try:
+                    payment_method = PaymentMethod.objects.get(id=deposit['payment_method'])
+                    deposit['payment_method_details'] = PaymentMethodSerializer(payment_method, context=context).data
+                except PaymentMethod.DoesNotExist:
+                    deposit['payment_method_details'] = None
+        
+        return Response(data)
 
 class PaymentMethodViewSet(viewsets.ModelViewSet):
     queryset = PaymentMethod.objects.all()

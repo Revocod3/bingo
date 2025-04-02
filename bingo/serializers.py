@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from users.serializers import UserSerializer
 from .models import DepositRequest, Event, BingoCard, Number, PaymentMethod, RatesConfig, SystemConfig, TestCoinBalance, CardPurchase, WinningPattern
 from decimal import Decimal
 
@@ -86,12 +88,14 @@ class WinningPatternCreateSerializer(WinningPatternSerializer):
 
 class DepositRequestSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    user = UserSerializer(read_only=True)  # Include the full user data
+    approved_by = UserSerializer(read_only=True)  # Include the full approver data
     
     class Meta:
         model = DepositRequest
         fields = ['id', 'user', 'amount', 'unique_code', 'reference', 
                   'status', 'status_display', 'created_at', 'updated_at', 
-                  'approved_by', 'admin_notes']
+                  'approved_by', 'admin_notes', 'payment_method']
         read_only_fields = ['id', 'unique_code', 'status', 'created_at', 
                            'updated_at', 'approved_by']
 
