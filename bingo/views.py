@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from django.db.models import Q
+from django.db.models import Q, Max
 from .models import Event, BingoCard, Number, PaymentMethod, TestCoinBalance, CardPurchase, WinningPattern, DepositRequest, SystemConfig, RatesConfig
 from .serializers import (
     EventSerializer, BingoCardSerializer, NumberSerializer, PaymentMethodCreateUpdateSerializer, PaymentMethodSerializer,
@@ -827,22 +827,28 @@ class BingoCardViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsSellerPermission])
     def my_transactions(self, request):
         """Get all card generation transactions for the seller"""
-        # Get all unique transaction IDs for this user
-        transactions = BingoCard.objects.filter(
+        # Get all cards with transaction IDs
+        cards = BingoCard.objects.filter(
             user=request.user,
             metadata__transaction_id__isnull=False
-        ).values('metadata__transaction_id', 'metadata__generated_at', 'metadata__batch_size', 'event__name')\
-         .distinct().order_by('-metadata__generated_at')
+        )
         
-        # Group by transaction_id and format the response
-        result = []
-        for transaction in transactions:
-            result.append({
-                'transaction_id': transaction['metadata__transaction_id'],
-                'generated_at': transaction['metadata__generated_at'],
-                'batch_size': transaction['metadata__batch_size'],
-                'event_name': transaction['event__name']
-            })
+        # Group by transaction_id
+        transactions_dict = {}
+        for card in cards:
+            transaction_id = card.metadata.get('transaction_id')
+            if transaction_id not in transactions_dict:
+                # Store first occurrence of each transaction
+                transactions_dict[transaction_id] = {
+                    'transaction_id': transaction_id,
+                    'generated_at': card.metadata.get('generated_at'),
+                    'batch_size': card.metadata.get('batch_size'),
+                    'event_name': card.event.name
+                }
+        
+        # Convert to list and sort
+        result = list(transactions_dict.values())
+        result.sort(key=lambda x: x['generated_at'], reverse=True)
         
         return Response(result)
     
