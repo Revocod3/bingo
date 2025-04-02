@@ -750,13 +750,20 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         # Generate PDF with cards
         pdf = self._generate_cards_pdf(cards, event)
         
-        # Create HTML content
+        # Create HTML content with safe handling of potentially missing attributes
+        event_date_str = getattr(event, 'date', None) or getattr(event, 'event_date', None) or ''
+        if hasattr(event_date_str, 'strftime'):
+            event_date_str = event_date_str.strftime('%Y-%m-%d %H:%M')
+        
+        # Safely get event description or use empty string
+        event_description = getattr(event, 'description', '') or getattr(event, 'event_description', '') or ''
+        
         html_message = render_to_string(
             'email/bingo_cards_email.html',
             {
                 'event_name': event.name,
-                'event_date': event.start_date.strftime('%Y-%m-%d %H:%M'),
-                'event_description': event.description,
+                'event_date': event_date_str,
+                'event_description': event_description,
                 'message': message,
                 'cards_count': len(cards)
             }
