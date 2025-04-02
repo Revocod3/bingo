@@ -1,4 +1,4 @@
-from datetime import timezone
+from datetime import datetime, timezone
 from jsonschema import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -656,7 +656,7 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                         # Store metadata about this transaction
                         metadata={
                             'transaction_id': transaction_id,
-                            'generated_at': timezone.now().isoformat(),
+                            'generated_at': datetime.now(timezone.utc).isoformat(),
                             'batch_size': quantity
                         }
                     )
