@@ -21,7 +21,7 @@ class CustomUserAdmin(UserAdmin):
     )
     list_display = ('email', 'first_name', 'last_name', 'is_staff', 'is_seller', 'is_email_verified', 'uuid')
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'is_seller', 'is_email_verified')
-    readonly_fields = ('uuid',)
+    readonly_fields = ('uuid', 'date_joined')
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('email',)
 

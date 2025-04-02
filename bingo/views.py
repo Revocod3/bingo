@@ -1,3 +1,4 @@
+from datetime import timezone
 from jsonschema import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -227,7 +228,7 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                 if balance.balance < total_cost:
                     return Response({
                         "success": False,
-                        "message": f"Insufficient test coins. Need {total_cost}, have {balance.balance}."
+                        "message": f"No tienes saldo suficiente. Necesitas tener {total_cost}, y tu saldo es {balance.balance}."
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
                 # Deduct coins with F() to prevent race conditions
@@ -567,9 +568,10 @@ class BingoCardViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsSellerPermission])
     def generate_bulk(self, request):
-        """Generate multiple bingo cards for sellers"""
+        """Generate multiple bingo cards for sellers and assign them to the seller's account"""
         quantity = request.data.get('quantity', 1)
         event_id = request.data.get('event_id')
+        user = request.user
         
         # Validate input
         if not event_id:
@@ -584,38 +586,141 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         except Event.DoesNotExist:
             return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
         
-        # Generate multiple cards
-        cards = []
-        for _ in range(quantity):
-            card_numbers = self._generate_bingo_card_numbers()
-            cards.append({
-                'numbers': card_numbers,
-                'event_id': event_id
-            })
+        # Get cost per card from system configuration
+        cost_per_card = float(SystemConfig.get_card_price())
+        total_cost = cost_per_card * quantity
         
-        # Return the generated cards
-        return Response({
-            "success": True,
-            "cards": cards,
-            "message": f"Successfully generated {quantity} cards"
-        })
+        # Use a Redis lock to prevent race conditions
+        lock_id = f"seller_generate_lock:{user.id}"
+        lock_timeout = 60  # 1 minute timeout
+        
+        # Try to acquire the lock
+        lock_acquired = cache.add(lock_id, "locked", lock_timeout)
+        if not lock_acquired:
+            return Response({"error": "Another generation is in progress"}, 
+                           status=status.HTTP_429_TOO_MANY_REQUESTS)
+        
+        try:
+            # Transaction to ensure atomicity
+            with transaction.atomic():
+                # Get or create test coin balance
+                balance, created = TestCoinBalance.objects.get_or_create(user=user)
+                
+                if balance.balance < total_cost:
+                    return Response({
+                        "success": False,
+                        "message": f"Insufficient test coins. Need {total_cost}, have {balance.balance}."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Deduct coins with F() to prevent race conditions
+                success, result = TestCoinBalance.deduct_coins(user.id, total_cost)
+                if not success:
+                    return Response({
+                        "success": False,
+                        "message": result
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Get or create card purchase record
+                card_purchase, created = CardPurchase.objects.get_or_create(
+                    user=user,
+                    event=event,
+                    defaults={"cards_owned": 0}
+                )
+                
+                # Update cards owned
+                card_purchase.cards_owned += quantity
+                card_purchase.save()
+                
+                # Create a transaction ID for this batch of cards
+                transaction_id = str(uuid.uuid4())
+                
+                # Generate unique bingo cards and save them to the database
+                cards = []
+                db_cards = []
+                for _ in range(quantity):
+                    # Generate a unique card
+                    card_numbers = self._generate_bingo_card_numbers()
+                    
+                    # Create a unique hash for the card
+                    card_hash = hashlib.sha256(
+                        f"{user.id}-{event.id}-{json.dumps(card_numbers)}-{uuid.uuid4()}".encode()
+                    ).hexdigest()
+                    
+                    # Create the card with transaction_id
+                    card = BingoCard.objects.create(
+                        event=event,
+                        user=user,
+                        numbers=card_numbers,
+                        is_winner=False,
+                        hash=card_hash,
+                        # Store metadata about this transaction
+                        metadata={
+                            'transaction_id': transaction_id,
+                            'generated_at': timezone.now().isoformat(),
+                            'batch_size': quantity
+                        }
+                    )
+                    db_cards.append(card)
+                    
+                    # Add to the response data list
+                    cards.append({
+                        'id': str(card.id),
+                        'numbers': card_numbers,
+                        'event_id': str(event_id)
+                    })
+                
+                # Return the response with transaction ID
+                return Response({
+                    "success": True,
+                    "new_balance": result.balance,
+                    "cards": cards,
+                    "cards_owned": card_purchase.cards_owned,
+                    "transaction_id": transaction_id,
+                    "message": f"Successfully generated {quantity} cards. Cost: {total_cost} coins."
+                })
+                
+        except Exception as e:
+            logger.error(f"Error during bulk card generation: {str(e)}", exc_info=True)
+            return Response({
+                "success": False,
+                "message": f"Card generation failed: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        finally:
+            # Release the lock
+            cache.delete(lock_id)
     
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsSellerPermission])
     def download_pdf(self, request):
         """Download generated cards as PDF"""
-        cards = request.data.get('cards', [])
-        event_id = request.data.get('event_id')
+        data = request.data
+        event_id = data.get('event_id')
+        cards_data = data.get('cards')
         
-        if not cards or not event_id:
+        if not cards_data or not event_id:
             return Response({"error": "cards and event_id are required"}, 
                            status=status.HTTP_400_BAD_REQUEST)
+        
+        # Handle different possible nested structures of cards data
+        if isinstance(cards_data, dict):
+            # If cards_data is a dict with a 'cards' key (nested structure)
+            if 'cards' in cards_data and isinstance(cards_data['cards'], list):
+                cards = cards_data['cards']
+            else:
+                # If it's a dict but not in the expected format
+                cards = [cards_data]
+        else:
+            # If cards_data is already a list
+            cards = cards_data
         
         try:
             event = Event.objects.get(id=event_id)
         except Event.DoesNotExist:
             return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
         
-        # Generate PDF with cards
+        # Log for debugging
+        logger.info(f"Generating PDF for {len(cards)} cards")
+        
+        # Generate PDF with extracted cards
         pdf = self._generate_cards_pdf(cards, event)
         
         # Create response with PDF
@@ -685,6 +790,62 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                 "message": f"Failed to send email: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsSellerPermission])
+    def download_transaction_cards(self, request):
+        """Download all cards from a specific transaction"""
+        transaction_id = request.query_params.get('transaction_id')
+        
+        if not transaction_id:
+            return Response({"error": "transaction_id parameter is required"}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get cards associated with this transaction
+        cards = BingoCard.objects.filter(
+            user=request.user,
+            metadata__transaction_id=transaction_id
+        )
+        
+        if not cards.exists():
+            return Response({"error": "No cards found for this transaction"}, 
+                           status=status.HTTP_404_NOT_FOUND)
+        
+        # Get event from the first card (all cards in a transaction are for the same event)
+        event = cards.first().event
+        
+        # Format cards for PDF generation
+        cards_data = [card.numbers for card in cards]
+        
+        # Generate PDF with cards
+        pdf = self._generate_cards_pdf(cards_data, event)
+        
+        # Create response with PDF
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="bingo_cards_transaction_{transaction_id[:8]}.pdf"'
+        
+        return response
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsSellerPermission])
+    def my_transactions(self, request):
+        """Get all card generation transactions for the seller"""
+        # Get all unique transaction IDs for this user
+        transactions = BingoCard.objects.filter(
+            user=request.user,
+            metadata__transaction_id__isnull=False
+        ).values('metadata__transaction_id', 'metadata__generated_at', 'metadata__batch_size', 'event__name')\
+         .distinct().order_by('-metadata__generated_at')
+        
+        # Group by transaction_id and format the response
+        result = []
+        for transaction in transactions:
+            result.append({
+                'transaction_id': transaction['metadata__transaction_id'],
+                'generated_at': transaction['metadata__generated_at'],
+                'batch_size': transaction['metadata__batch_size'],
+                'event_name': transaction['event__name']
+            })
+        
+        return Response(result)
+    
     def _generate_cards_pdf(self, cards, event):
         """Generate a PDF with the given cards"""
         buffer = BytesIO()
@@ -693,9 +854,22 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         doc = SimpleDocTemplate(buffer, pagesize=letter)
         elements = []
         
+        # Parse cards data if it's a string (JSON)
+        if isinstance(cards, str):
+            cards = json.loads(cards)
+        
         # For each card, create a table representation
         for i, card in enumerate(cards):
-            elements.append(self._create_card_table(card['numbers'], i+1))
+            # Handle different possible structures of the card data
+            if isinstance(card, dict) and 'numbers' in card:
+                card_numbers = card['numbers']
+            else:
+                # If the card is directly an array or has a different structure
+                card_numbers = card
+            
+            # Get the table elements (which is a list) and extend our elements list
+            card_elements = self._create_card_table(card_numbers, i+1)
+            elements.extend(card_elements)  # Use extend instead of append for lists
             
             # Add some space between cards
             if i < len(cards) - 1:

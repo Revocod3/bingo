@@ -30,7 +30,8 @@ class BingoCard(models.Model):
     is_winner = models.BooleanField(default=False)
     hash = models.CharField(max_length=64, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+    # Agregar campo de metadatos para almacenar información adicional como el ID de transacción
+    metadata = models.JSONField(default=dict, blank=True, null=True)
 
 class Wallet(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
