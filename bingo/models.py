@@ -175,6 +175,8 @@ class SystemConfig(models.Model):
     """System configuration settings"""
     card_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.20,
                                     verbose_name="Card Price")
+    seller_card_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.15,
+                                    verbose_name="Seller Card Price")
     last_updated = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     
@@ -183,9 +185,16 @@ class SystemConfig(models.Model):
         verbose_name_plural = "System Configuration"
     
     @classmethod
-    def get_card_price(cls):
-        """Get the current card price, or create with default if none exists"""
+    def get_card_price(cls, user=None):
+        """Get the current card price, or create with default if none exists
+        If user is a seller, returns the discounted seller price
+        """
         config, created = cls.objects.get_or_create(pk=1)
+        
+        # Check if user is a seller and apply discount
+        if user and hasattr(user, 'groups') and user.groups.filter(name='Seller').exists():
+            return config.seller_card_price
+            
         return config.card_price
     
     @classmethod
@@ -197,8 +206,17 @@ class SystemConfig(models.Model):
         config.save()
         return config
     
+    @classmethod
+    def update_seller_card_price(cls, price, user=None):
+        """Update the seller card price"""
+        config, created = cls.objects.get_or_create(pk=1)
+        config.seller_card_price = price
+        config.updated_by = user
+        config.save()
+        return config
+    
     def __str__(self):
-        return f"System Configuration (Card Price: {self.card_price})"
+        return f"System Configuration (Card Price: {self.card_price}, Seller Price: {self.seller_card_price})"
 
 class PaymentMethod(models.Model):
     """
