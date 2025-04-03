@@ -1,11 +1,15 @@
 from django.contrib import admin
 from django.shortcuts import render, redirect
-from django.urls import path
+from django.urls import path, reverse
 from django.utils.html import format_html
 import json
 from django.contrib import messages
 from .models import CardPurchase, Event, BingoCard, Number, PaymentMethod, TestCoinBalance, Wallet, WinningPattern, DepositRequest, SystemConfig, RatesConfig
 from .views import BingoCardViewSet
+from django.core.management import call_command
+from io import StringIO
+import sys
+from django import forms
 
 # Register models using custom admin classes
 admin.site.register(Event)
@@ -17,10 +21,15 @@ admin.site.register(CardPurchase)
 admin.site.register(DepositRequest)
 admin.site.register(SystemConfig)
 
+# Formulario para verificar cartón con número específico
+class VerifyWinWithNumberForm(forms.Form):
+    card_id = forms.CharField(label="ID del Cartón", max_length=100, required=True)
+    number = forms.IntegerField(label="Número Específico", min_value=1, max_value=75, required=True)
+
 # Custom BingoCard admin with seller functionality
 @admin.register(BingoCard)
 class BingoCardAdmin(admin.ModelAdmin):
-    list_display = ('id', 'event', 'user', 'is_winner', 'created_at')
+    list_display = ('id', 'event', 'user', 'is_winner', 'created_at', 'admin_actions')
     list_filter = ('event', 'is_winner', 'created_at')
     search_fields = ('id', 'user__email')
     readonly_fields = ('hash',)
@@ -31,6 +40,8 @@ class BingoCardAdmin(admin.ModelAdmin):
             path('generate-cards/', self.admin_site.admin_view(self.generate_cards_view), name='generate-cards'),
             path('download-cards-pdf/', self.admin_site.admin_view(self.download_cards_pdf_view), name='download-cards-pdf'),
             path('email-cards/', self.admin_site.admin_view(self.email_cards_view), name='email-cards'),
+            path('verify-win-with-number/', self.admin_site.admin_view(self.verify_win_with_number_view), 
+                 name='verify-win-with-number'),
         ]
         return custom_urls + urls
     
@@ -128,17 +139,64 @@ class BingoCardAdmin(admin.ModelAdmin):
             'title': 'Email Bingo Cards'
         })
     
+    def verify_win_with_number_view(self, request):
+        # Contexto inicial para la plantilla
+        context = {
+            'title': 'Verificar si un cartón ganó con un número específico',
+            'form': VerifyWinWithNumberForm(),
+            'result': None,
+        }
+        
+        if request.method == 'POST':
+            form = VerifyWinWithNumberForm(request.POST)
+            context['form'] = form
+            
+            if form.is_valid():
+                card_id = form.cleaned_data['card_id']
+                number = form.cleaned_data['number']
+                
+                # Capturar la salida del comando
+                output = StringIO()
+                try:
+                    call_command('verify_win_with_number', card_id, number, stdout=output)
+                    context['result'] = {
+                        'success': True,
+                        'output': output.getvalue().split('\n'),
+                    }
+                except Exception as e:
+                    context['result'] = {
+                        'success': False,
+                        'output': [str(e)],
+                    }
+        
+        return render(request, 'admin/verify_win_with_number.html', context)
+    
+    def admin_actions(self, obj):
+        """Añade botones de acción en la lista de cartones"""
+        return format_html(
+            '<a class="button" href="{}">Verificar con número</a>',
+            reverse('admin:verify-win-with-number')
+        )
+    admin_actions.short_description = 'Acciones'
+    
     def generate_cards_button(self, obj):
-        return format_html('<a class="button" href="{}">Generate Cards</a>', 'generate-cards')
+        return format_html(
+            '<a class="button" href="{}">Generar Cartones</a> '
+            '<a class="button" style="background-color: #417690; color: white;" href="{}">Verificar Victoria</a>',
+            'generate-cards',
+            'verify-win-with-number'
+        )
+    generate_cards_button.short_description = 'Acciones de Cartones'
     
-    generate_cards_button.short_description = 'Generate Cards'
-    
-    actions = ['generate_cards_action']
+    actions = ['generate_cards_action', 'verify_win_action']
     
     def generate_cards_action(self, request, queryset):
         return redirect('admin:generate-cards')
     
-    generate_cards_action.short_description = "Generate new bingo cards"
+    def verify_win_action(self, request, queryset):
+        """Acción para verificar victoria por número"""
+        return redirect('admin:verify-win-with-number')
+    verify_win_action.short_description = "Verificar victoria por número específico"
 
 @admin.register(PaymentMethod)
 class PaymentMethodAdmin(admin.ModelAdmin):

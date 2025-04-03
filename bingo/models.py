@@ -18,6 +18,7 @@ class Event(models.Model):
     is_active = models.BooleanField(default=True)
     is_live = models.BooleanField(default=False)
     allowed_patterns = models.ManyToManyField('WinningPattern', blank=True, related_name='events')
+    disabled_patterns = models.ManyToManyField('WinningPattern', blank=True, related_name='disabled_in_events')
 
     def __str__(self):
         return self.name

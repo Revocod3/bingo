@@ -417,6 +417,16 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                 event_id=card.event_id
             ).values_list('value', flat=True))
             
+            # Check if the pattern is disabled for this event
+            event = card.event
+            if event.disabled_patterns.filter(name=pattern_name).exists():
+                return Response({
+                    "success": False,
+                    "card_id": card.id,
+                    "event_id": card.event_id,
+                    "message": "Este patrón ya ha sido completado y está deshabilitado para este evento"
+                })
+            
             # Check if the pattern is completed with called numbers
             from .win_patterns import check_win_pattern
             is_winner, win_details = check_win_pattern(card.numbers, set(called_numbers), pattern_name)

@@ -1,0 +1,57 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <h2 style="background-color: #417690; color: white; padding: 10px;">Verificar si un cartón ganó con un número específico</h2>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="card_id" style="font-weight: bold;">{{ form.card_id.label }}:</label>
+                    {{ form.card_id }}
+                    {% if form.card_id.errors %}
+                    <p class="error">{{ form.card_id.errors.0 }}</p>
+                    {% endif %}
+                    <p class="help">Ingresa el UUID del cartón que deseas verificar</p>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="field-box">
+                    <label for="number" style="font-weight: bold;">{{ form.number.label }}:</label>
+                    {{ form.number }}
+                    {% if form.number.errors %}
+                    <p class="error">{{ form.number.errors.0 }}</p>
+                    {% endif %}
+                    <p class="help">Ingresa el número específico para verificar si completó un patrón ganador</p>
+                </div>
+            </div>
+        </fieldset>
+        
+        <div class="submit-row">
+            <input type="submit" value="Verificar" class="default" name="_verify" style="background-color: #417690;">
+            <a href="{% url 'admin:bingo_bingocard_changelist' %}" class="button" style="margin-right: 5px;">Volver a Lista de Cartones</a>
+        </div>
+    </form>
+    
+    {% if result %}
+    <div class="module" style="margin-top: 20px;">
+        <h2 class="{% if result.success %}success-header{% else %}failure-header{% endif %}">Resultado de la verificación</h2>
+        <div class="results {% if result.success %}success-result{% else %}failure-result{% endif %}">
+            {% for line in result.output %}
+                <p>{{ line }}</p>
+            {% endfor %}
+        </div>
+    </div>
+    <style>
+        .success-header { background-color: #73AD21; color: white; padding: 10px; }
+        .failure-header { background-color: #f44336; color: white; padding: 10px; }
+        .success-result { background-color: #f6fff6; margin: 10px; padding: 15px; border: 1px solid #ccc; border-radius: 4px; }
+        .failure-result { background-color: #fff6f6; margin: 10px; padding: 15px; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+    {% endif %}
+</div>
+{% endblock %}
