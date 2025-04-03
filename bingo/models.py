@@ -54,7 +54,7 @@ class Number(models.Model):
 
 class TestCoinBalance(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='test_coins')
-    balance = models.PositiveIntegerField(default=0)  # Cambiado de 100 a 0
+    balance = models.PositiveIntegerField(default=0)
     last_updated = models.DateTimeField(auto_now=True)
     
     class Meta:
