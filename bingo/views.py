@@ -829,8 +829,8 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         # Get event from the first card (all cards in a transaction are for the same event)
         event = cards.first().event
         
-        # Format cards for PDF generation
-        cards_data = [card.numbers for card in cards]
+        # Format cards for PDF generation - include ID and numbers
+        cards_data = [{'id': str(card.id), 'numbers': card.numbers} for card in cards]
         
         # Generate PDF with cards
         pdf = self._generate_cards_pdf(cards_data, event)
@@ -990,24 +990,38 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         # Encabezado del cartón: título y ID (pequeño y compacto)
         card_title = Paragraph("<font size='10'>BINGO CARD</font>", styles['Normal'])
         
-        # Format card ID - handle different ID types (UUID vs sequence number)
-        if isinstance(card_id, str) and len(card_id) > 8:
-            # For UUIDs, show in a shortened format
-            card_id_text = Paragraph(f"<font size='6'>ID: {card_id[:8]}...</font>", styles['Normal'])
+        # Always show the full card ID regardless of length
+        card_id_text = Paragraph(f"<font size='7'>ID: {card_id}</font>", styles['Normal'])
+        
+        # Get seller info if available from metadata\
+        user = getattr(event, 'user', None)
+        if user:
+            seller_info = Paragraph(f"<font size='7'>Vendedor: {user.username}</font>", styles['Normal'])
+            container_data.append([seller_info, ''])
+        
+        container_data.append([card_title])
+        
+        event_info = Paragraph(f"<font size='7'>Evento: {event.name}</font>", styles['Normal'])
+        # Add event info
+        container_data.append([event_info, ''])
+        container_data.append([card_id_text, ''])
+        
+        # Get seller info if available from metadata
+        user = getattr(event, 'user', None)
+        if user:
+            seller_info = Paragraph(f"<font size='7'>Vendedor: {user.username}</font>", styles['Normal'])
+            container_data.append([seller_info, ''])
+        
+        # Extract card numbers from dictionary if needed
+        if isinstance(card_numbers, dict) and 'numbers' in card_numbers:
+            numbers_data = card_numbers['numbers']
         else:
-            # For sequence numbers or shorter IDs, show as is
-            card_id_text = Paragraph(f"<font size='6'>ID: {card_id}</font>", styles['Normal'])
-        
-        container_data.append([card_title, card_id_text])
-        
-        # Placeholders para datos de usuario (más compacto)
-        user_info = Paragraph("<font size='8'>Nombre: ___________ Tel: ___________</font>", styles['Normal'])
-        container_data.append([user_info, ''])
-        
+            numbers_data = card_numbers
+            
         # Creación de la cuadrícula del cartón: encabezado y 5x5
         table_data = [['B', 'I', 'N', 'G', 'O']]
         from .win_patterns import parse_card_numbers
-        flat_card = parse_card_numbers(card_numbers)
+        flat_card = parse_card_numbers(numbers_data)
         
         for row in range(5):
             row_data = []
@@ -1059,10 +1073,15 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         
         # Encabezado más compacto
         event_title = Paragraph(f"<b>{event.name}</b>", styles['Normal'])
-        event_date = Paragraph(
-            f"<font size='8'>Fecha: {event.date.strftime('%d/%m/%Y') if hasattr(event, 'date') and event.date else 'TBD'}</font>",
-            styles['Normal']
-        )
+        
+        # Ensure date is displayed properly, defaulting to current date if not available
+        if hasattr(event, 'date') and event.date:
+            date_str = event.date.strftime('%d/%m/%Y')
+        else:
+            # Fallback to current date instead of "TBD"
+            date_str = datetime.now().strftime('%d/%m/%Y')
+        
+        event_date = Paragraph(f"<font size='8'>Fecha: {date_str}</font>", styles['Normal'])
         event_info = Paragraph(f"<font size='8'>ID: {event.id}</font>", styles['Normal'])
         
         header_data = [
@@ -1071,11 +1090,16 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             ['', event_info]
         ]
         
+        # If event has location, add it
+        if hasattr(event, 'location') and event.location:
+            location_info = Paragraph(f"<font size='8'>Lugar: {event.location}</font>", styles['Normal'])
+            header_data.append(['', location_info])
+        
         header = Table(header_data, colWidths=[0.8*inch, 6.2*inch])
         header.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('SPAN', (0, 0), (0, 2)),
-            ('ALIGN', (0, 0), (0, 2), 'CENTER'),
+            ('SPAN', (0, 0), (0, -1)),  # Logo spans all rows
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
             ('ALIGN', (1, 0), (1, -1), 'LEFT'),
         ]))
         return header
@@ -1094,13 +1118,18 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         canvas.restoreState()
     
     def _add_back_page_content(self, canvas, doc):
-        """Contenido mínimo en la contraportada"""
+        """Contenido mejorado en la contraportada"""
         canvas.saveState()
         
-        # Texto pequeño de copyright en la parte inferior
+        # Texto de copyright con fecha e información adicional
         canvas.setFont('Helvetica', 6)
         canvas.setFillColorRGB(0.5, 0.5, 0.5)  # Gris claro para no distraer
-        canvas.drawCentredString(4.25*inch, 0.2*inch, "© Bingo App - www.bingoapp.com")
+        
+        # Add current date/time
+        current_time = datetime.now().strftime("%d/%m/%Y %H:%M")
+        footer_text = f"© Bingo App - Generado: {current_time}"
+        
+        canvas.drawCentredString(4.25*inch, 0.2*inch, footer_text)
         
         canvas.restoreState()
 
