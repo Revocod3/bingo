@@ -142,3 +142,11 @@ class ResendVerificationSerializer(serializers.Serializer):
         
     class Meta:
         ref_name = 'CustomResendVerificationSerializer'
+
+class GoogleLoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    name = serializers.CharField(required=False, allow_blank=True)
+    google_id = serializers.CharField(required=True)
+    
+    class Meta:
+        ref_name = 'GoogleLoginSerializer'

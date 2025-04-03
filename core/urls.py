@@ -18,7 +18,7 @@ from django.urls import path, include
 from django.contrib import admin
 from rest_framework.routers import DefaultRouter
 from users.views import (
-    UserViewSet, RegisterView, VerifyEmailView, ResendVerificationView,
+    GoogleLoginAPIView, UserViewSet, RegisterView, VerifyEmailView, ResendVerificationView,
     FacebookLogin, GoogleLogin,
 )
 from users.admin_commands import run_management_command
@@ -63,6 +63,9 @@ auth_urlpatterns = [
     # Social auth endpoints
     path('facebook/', FacebookLogin.as_view(), name='facebook_login'),
     path('google/', GoogleLogin.as_view(), name='google_login'),
+    
+    # Custom Google login endpoint for frontend
+    path('google-login/', GoogleLoginAPIView.as_view(), name='google_login_api'),
     
     # dj-rest-auth URLs for login, logout, password reset, etc.
     path('', include('dj_rest_auth.urls')),

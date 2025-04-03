@@ -21,6 +21,9 @@ from dj_rest_auth.registration.views import SocialLoginView
 from allauth.account.models import EmailAddress
 from django.db.utils import OperationalError
 from rest_framework.exceptions import APIException
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from .serializers import GoogleLoginSerializer
 
 User = get_user_model()
 
@@ -140,3 +143,61 @@ class ResendVerificationView(generics.GenericAPIView):
         send_mail(subject, message, from_email, recipient_list)
         
         return Response({"detail": "Verification code sent"}, status=status.HTTP_200_OK)
+
+class GoogleLoginAPIView(APIView):
+    """
+    Custom view to handle Google login from frontend
+    This endpoint receives a Google ID and email from the frontend
+    and creates or updates a user in our system
+    """
+    permission_classes = [permissions.AllowAny]
+    serializer_class = GoogleLoginSerializer
+    
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data['email']
+        google_id = serializer.validated_data['google_id']
+        name = serializer.validated_data.get('name', '')
+        
+        try:
+            # Check if user exists with this email
+            user = User.objects.get(email=email)
+            # Update user if needed (can add more fields here if necessary)
+            if not user.is_email_verified:
+                user.is_email_verified = True
+                user.save()
+        except User.DoesNotExist:
+            # Create new user
+            first_name = name.split(' ')[0] if ' ' in name else name
+            last_name = ' '.join(name.split(' ')[1:]) if ' ' in name else ''
+            
+            user = User.objects.create_user(
+                email=email,
+                # Generate a random secure password for the user
+                password=''.join(random.choices(string.ascii_letters + string.digits, k=32)),
+                first_name=first_name,
+                last_name=last_name,
+                is_email_verified=True
+            )
+            
+            # Create EmailAddress record for django-allauth
+            EmailAddress.objects.create(
+                user=user,
+                email=user.email,
+                primary=True,
+                verified=True
+            )
+        
+        # Create tokens for the user
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        
+        # Return the token and user details
+        user_serializer = UserSerializer(user)
+        return Response({
+            'access': access_token,
+            'refresh': str(refresh),
+            'user': user_serializer.data
+        }, status=status.HTTP_200_OK)
