@@ -1277,7 +1277,7 @@ class TestCoinBalanceViewSet(viewsets.ModelViewSet):
         """Get the current user's test coin balance"""
         balance, created = TestCoinBalance.objects.get_or_create(
             user=request.user,
-            defaults={"balance": 100}
+            defaults={"balance": 0}
         )
         return Response({
             "balance": balance.balance,
