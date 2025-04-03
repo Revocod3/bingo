@@ -25,7 +25,7 @@ from django.core.cache import cache
 import uuid
 from django.http import HttpResponse
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph, PageBreak, Image
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.lib.units import inch
@@ -860,89 +860,239 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         return Response(result)
     
     def _generate_cards_pdf(self, cards, event):
-        """Generate a PDF with the given cards"""
+        """Genera un PDF con los cartones de bingo en un grid 2x2 por página"""
         buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            topMargin=0.3*inch,  # Reducir márgenes
+            bottomMargin=0.3*inch,
+            leftMargin=0.3*inch,
+            rightMargin=0.3*inch
+        )
         
-        # Create the PDF object
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
-        elements = []
-        
-        # Parse cards data if it's a string (JSON)
+        # Si cards es un string (JSON), convertirlo
         if isinstance(cards, str):
             cards = json.loads(cards)
         
-        # For each card, create a table representation
-        for i, card in enumerate(cards):
-            # Handle different possible structures of the card data
-            if isinstance(card, dict) and 'numbers' in card:
-                card_numbers = card['numbers']
-            else:
-                # If the card is directly an array or has a different structure
-                card_numbers = card
-            
-            # Get the table elements (which is a list) and extend our elements list
-            card_elements = self._create_card_table(card_numbers, i+1)
-            elements.extend(card_elements)  # Use extend instead of append for lists
-            
-            # Add some space between cards
-            if i < len(cards) - 1:
-                elements.append(Spacer(1, 0.5*inch))
+        cards_per_page = 4  # Grid de 2x2
+        elements = []
         
-        # Build the PDF
-        doc.build(elements)
+        # Encabezado más compacto
+        elements.append(self._create_header(event))
+        # Reducir el espacio después del encabezado
+        elements.append(Spacer(1, 0.1*inch))
         
-        # Get the value of the BytesIO buffer
+        # Procesar los cartones en grupos de 4 (por página)
+        for page_start in range(0, len(cards), cards_per_page):
+            # Obtener los cartones para esta página (hasta 4)
+            page_cards = cards[page_start:page_start+cards_per_page]
+            
+            # Crear una tabla de 2x2 para esta página con menos padding
+            grid_data = []
+            
+            # Primera fila (cartones 0 y 1)
+            row1 = []
+            # Segunda fila (cartones 2 y 3)
+            row2 = []
+            
+            # Para cada posición en el grid 2x2
+            for i in range(min(cards_per_page, len(page_cards))):
+                card = page_cards[i]
+                card_id = page_start + i + 1  # Número de cartón para mostrar
+                
+                # Extraer los números del cartón según su estructura
+                if isinstance(card, dict) and 'numbers' in card:
+                    card_numbers = card['numbers']
+                    if 'id' in card:
+                        card_id = card['id']
+                else:
+                    card_numbers = card
+                
+                # Crear el cartón individual con tamaño más compacto
+                card_table = self._create_card_table(card_numbers, card_id, event)
+                
+                # Agregar a la fila correspondiente
+                if i < 2:  # Primeros dos cartones van en la primera fila
+                    row1.append(card_table)
+                else:  # Los siguientes dos cartones van en la segunda fila
+                    row2.append(card_table)
+            
+            # Completar las filas si faltan cartones
+            while len(row1) < 2:
+                row1.append(Spacer(3*inch, 3*inch))
+            while len(row2) < 2:
+                row2.append(Spacer(3*inch, 3*inch))
+            
+            # Agregar las filas al grid
+            grid_data.append(row1)
+            grid_data.append(row2)
+            
+            # Crear la tabla del grid 2x2 con menos padding
+            grid = Table(grid_data, colWidths=[3.7*inch, 3.7*inch])
+            grid.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 5),  # Reducir padding
+                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ]))
+            elements.append(grid)
+            
+            # Agregar salto de página si quedan más cartones
+            if page_start + cards_per_page < len(cards):
+                elements.append(PageBreak())
+                elements.append(self._create_header(event))
+                elements.append(Spacer(1, 0.1*inch))  # Reducir espacio
+        
+        # Crear frame que ocupe toda la página
+        from reportlab.platypus.frames import Frame
+        from reportlab.platypus.doctemplate import PageTemplate
+        frame = Frame(
+            doc.leftMargin, 
+            doc.bottomMargin, 
+            doc.width, 
+            doc.height, 
+            id='normal',
+            showBoundary=0  # No mostrar bordes del frame
+        )
+        
+        # Crear plantilla simple
+        template = PageTemplate(
+            id='normal', 
+            frames=[frame], 
+            onPage=self._add_page_number
+        )
+        doc.addPageTemplates([template])
+        
+        # Construir el PDF sin footer en cada carta
+        doc.build(elements, onFirstPage=self._add_page_number, onLaterPages=self._add_page_number)
         pdf = buffer.getvalue()
         buffer.close()
-        
         return pdf
-    
-    def _create_card_table(self, card_numbers, card_number):
-        """Create a table representation of a bingo card for PDF"""
+
+    def _create_card_table(self, card_numbers, card_id, event):
+        """Crea la representación en tabla de un cartón de bingo con datos adicionales"""
         styles = getSampleStyleSheet()
+        container_data = []
         
-        # Create header for the card
-        header = Paragraph(f"BINGO CARD #{card_number}", styles['Heading1'])
+        # Encabezado del cartón: título y ID (pequeño y compacto)
+        card_title = Paragraph("<font size='10'>BINGO CARD</font>", styles['Normal'])
         
-        # Create the data for the table
+        # Format card ID - handle different ID types (UUID vs sequence number)
+        if isinstance(card_id, str) and len(card_id) > 8:
+            # For UUIDs, show in a shortened format
+            card_id_text = Paragraph(f"<font size='6'>ID: {card_id[:8]}...</font>", styles['Normal'])
+        else:
+            # For sequence numbers or shorter IDs, show as is
+            card_id_text = Paragraph(f"<font size='6'>ID: {card_id}</font>", styles['Normal'])
+        
+        container_data.append([card_title, card_id_text])
+        
+        # Placeholders para datos de usuario (más compacto)
+        user_info = Paragraph("<font size='8'>Nombre: ___________ Tel: ___________</font>", styles['Normal'])
+        container_data.append([user_info, ''])
+        
+        # Creación de la cuadrícula del cartón: encabezado y 5x5
         table_data = [['B', 'I', 'N', 'G', 'O']]
-        
-        # Parse the card in standard format
         from .win_patterns import parse_card_numbers
         flat_card = parse_card_numbers(card_numbers)
         
-        # Organize the flat card into a 5x5 grid
         for row in range(5):
-            table_row = []
+            row_data = []
             for col in range(5):
-                pos = row * 5 + col
-                if pos < len(flat_card):
-                    value = flat_card[pos]
-                    # For the free space in the middle
-                    if value == 0 and row == 2 and col == 2:
-                        table_row.append("FREE")
+                index = row * 5 + col
+                if index < len(flat_card):
+                    val = flat_card[index]
+                    # Si es el centro y el valor es 0, mostrar "FREE"
+                    if row == 2 and col == 2 and val == 0:
+                        row_data.append("FREE")
                     else:
-                        table_row.append(str(value))
+                        row_data.append(str(val))
                 else:
-                    table_row.append("")
-            table_data.append(table_row)
+                    row_data.append("")
+            table_data.append(row_data)
         
-        # Create the table
-        table = Table(table_data, colWidths=[0.8*inch]*5, rowHeights=[0.4*inch] + [0.8*inch]*5)
-        
-        # Style the table
-        table.setStyle(TableStyle([
+        # Tabla más compacta
+        bingo_table = Table(table_data, colWidths=[0.55*inch]*5, rowHeights=[0.25*inch] + [0.55*inch]*5)
+        bingo_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('BACKGROUND', (0, 0), (4, 0), colors.lightgrey),
-            ('FONTSIZE', (0, 0), (-1, -1), 14),
-            ('FONTSIZE', (0, 0), (4, 0), 16),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),  # Fuente más pequeña
+            ('FONTSIZE', (0, 0), (4, 0), 12),
             ('FONTNAME', (0, 0), (4, 0), 'Helvetica-Bold'),
         ]))
         
-        # Return both the header and the table
-        return [header, Spacer(1, 0.2*inch), table]
+        # Integrar la cuadrícula en el contenedor del cartón
+        container_data.append([bingo_table, ''])
+        container = Table(container_data, colWidths=[2.2*inch, 0.8*inch])
+        container.setStyle(TableStyle([
+            ('SPAN', (0, 2), (1, 2)),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        return container
+    
+    def _create_header(self, event):
+        """Crea el encabezado con logo y datos del evento (versión compacta)"""
+        logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'bingo_logo.png')
+        styles = getSampleStyleSheet()
+        
+        if os.path.exists(logo_path):
+            logo = Image(logo_path, width=0.9*inch, height=0.9*inch)
+        else:
+            logo = Paragraph("<font size='10'>BINGO APP</font>", styles['Normal'])
+        
+        # Encabezado más compacto
+        event_title = Paragraph(f"<b>{event.name}</b>", styles['Normal'])
+        event_date = Paragraph(
+            f"<font size='8'>Fecha: {event.date.strftime('%d/%m/%Y') if hasattr(event, 'date') and event.date else 'TBD'}</font>",
+            styles['Normal']
+        )
+        event_info = Paragraph(f"<font size='8'>ID: {event.id}</font>", styles['Normal'])
+        
+        header_data = [
+            [logo, event_title],
+            ['', event_date],
+            ['', event_info]
+        ]
+        
+        header = Table(header_data, colWidths=[0.8*inch, 6.2*inch])
+        header.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('SPAN', (0, 0), (0, 2)),
+            ('ALIGN', (0, 0), (0, 2), 'CENTER'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ]))
+        return header
+    
+    def _add_page_number(self, canvas, doc):
+        """Agrega numeración de página discreta"""
+        canvas.saveState()
+        canvas.setFont('Helvetica', 6)  # Fuente más pequeña
+        page_text = f"Página {doc.page}"
+        canvas.drawRightString(8*inch, 0.2*inch, page_text)
+        
+        # Solo agregar texto de copyright en la última página
+        if doc.page % 2 == 0:  # Páginas pares
+            self._add_back_page_content(canvas, doc)
+            
+        canvas.restoreState()
+    
+    def _add_back_page_content(self, canvas, doc):
+        """Contenido mínimo en la contraportada"""
+        canvas.saveState()
+        
+        # Texto pequeño de copyright en la parte inferior
+        canvas.setFont('Helvetica', 6)
+        canvas.setFillColorRGB(0.5, 0.5, 0.5)  # Gris claro para no distraer
+        canvas.drawCentredString(4.25*inch, 0.2*inch, "© Bingo App - www.bingoapp.com")
+        
+        canvas.restoreState()
 
 class NumberViewSet(viewsets.ModelViewSet):
     queryset = Number.objects.all()
