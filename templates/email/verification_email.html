@@ -2,55 +2,104 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificación de Email</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+        
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Poppins', Arial, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #1F1A4B;
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #f5f5f5;
         }
+        
         .container {
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            padding: 20px;
-            border: 1px solid #ddd;
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .logo {
+            margin-bottom: 15px;
+        }
+        
+        h2 {
+            color: #3B0764;
+            font-weight: 600;
+            margin-top: 0;
+        }
+        
+        p {
+            margin-bottom: 16px;
+            color: #4b5563;
+        }
+        
+        .code-container {
+            margin: 30px 0;
+            text-align: center;
+        }
+        
         .code {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
             text-align: center;
-            padding: 10px;
-            background-color: #eee;
-            border-radius: 4px;
+            padding: 15px;
+            background-image: linear-gradient(to right, #7C3AED, #6D28D9);
+            color: white;
+            border-radius: 8px;
             letter-spacing: 5px;
-            margin: 20px 0;
+            display: inline-block;
+            box-shadow: 0 4px 8px rgba(124, 58, 237, 0.3);
         }
+        
         .footer {
             font-size: 12px;
-            color: #777;
+            color: #71717a;
             text-align: center;
-            margin-top: 20px;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Welcome to {{ site_name }}!</h2>
-        <p>Hello {% if user.first_name %}{{ user.first_name }}{% else %}there{% endif %},</p>
-        <p>Thank you for registering. To verify your email address, please use the following verification code:</p>
+        <div class="header">
+            <div class="logo">
+                <img src="https://bingoenvivo.casino/logo.svg" alt="{{ site_name }}" width="150">
+            </div>
+            <h2>¡Bienvenido a {{ site_name }}!</h2>
+        </div>
         
-        <div class="code">{{ code }}</div>
+        <p>Hola {% if user.first_name %}{{ user.first_name }}{% else %}estimado usuario{% endif %},</p>
         
-        <p>This code will expire in 24 hours.</p>
-        <p>If you didn't create an account with us, please ignore this email.</p>
+        <p>Gracias por registrarte. Para verificar tu dirección de correo electrónico, por favor utiliza el siguiente código de verificación:</p>
         
-        <p>Best regards,<br>
-        The {{ site_name }} Team</p>
-    </div>
-    <div class="footer">
-        &copy; {{ site_name }} - All rights reserved
+        <div class="code-container">
+            <div class="code">{{ code }}</div>
+        </div>
+        
+        <p>Este código expirará en 24 horas.</p>
+        
+        <p>Si no creaste una cuenta con nosotros, por favor ignora este correo.</p>
+        
+        <p>Saludos cordiales,<br>
+        El equipo de {{ site_name }}</p>
+        
+        <div class="footer">
+            &copy; {{ site_name }} - Todos los derechos reservados
+        </div>
     </div>
 </body>
 </html>

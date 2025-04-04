@@ -2,51 +2,127 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartones de Bingo</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+        
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Poppins', Arial, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #1F1A4B;
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
+            background-color: #f5f5f5;
         }
+        
         .container {
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            padding: 20px;
-            border: 1px solid #ddd;
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .logo {
+            margin-bottom: 15px;
+        }
+        
+        h2 {
+            color: #3B0764;
+            font-weight: 600;
+            margin-top: 0;
+        }
+        
+        p {
+            margin-bottom: 16px;
+            color: #4b5563;
+        }
+        
+        .event-details {
+            background-color: #f8f5ff;
+            border-left: 4px solid #7C3AED;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .event-details h3 {
+            color: #7C3AED;
+            margin-top: 0;
+            font-size: 16px;
+        }
+        
+        ul {
+            padding-left: 20px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+            color: #4b5563;
+        }
+        
+        strong {
+            color: #3B0764;
+        }
+        
+        .card-count {
+            display: inline-block;
+            background-image: linear-gradient(to right, #7C3AED, #6D28D9);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 500;
+            margin: 0 5px;
+        }
+        
         .footer {
             font-size: 12px;
-            color: #777;
+            color: #71717a;
             text-align: center;
-            margin-top: 20px;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Your Bingo Cards for {{ event_name }}</h2>
-        <p>Hello,</p>
+        <div class="header">
+            <div class="logo">
+                <img src="https://bingoenvivo.casino/logo.svg" alt="{{ site_name }}" width="150">
+            </div>
+            <h2>Tus cartones para {{ event_name }}</h2>
+        </div>
+        
+        <p>Hola,</p>
         <p>{{ message }}</p>
         
-        <p>Please find attached your bingo cards in PDF format. There are {{ cards_count }} cards included.</p>
+        <p>Aquí tienes tus <span class="card-count">{{ card_count }}</span> cartones para el evento de bingo.</p>
         
-        <p>Event Details:</p>
-        <ul>
-            <li><strong>Event:</strong> {{ event_name }}</li>
-            <li><strong>Date:</strong> {{ event_date }}</li>
-            {% if event_description %}
-            <li><strong>Description:</strong> {{ event_description }}</li>
-            {% endif %}
-        </ul>
+        <div class="event-details">
+            <h3>Detalles del Evento:</h3>
+            <ul>
+                <li><strong>Evento:</strong> {{ event_name }}</li>
+                <li><strong>Fecha:</strong> {{ event_date }}</li>
+                {% if event_description %}
+                <li><strong>Descripción:</strong> {{ event_description }}</li>
+                {% endif %}
+            </ul>
+        </div>
         
-        <p>Best regards,<br>
-        The Bingo App Team</p>
-    </div>
-    <div class="footer">
-        &copy; Bingo App - All rights reserved
+        <p>Atentamente,<br>
+        El equipo de www.bingoenvivo.casino</p>
+        
+        <div class="footer">
+            &copy; {{ current_year }} www.bingoenvivo.casino - Todos los derechos reservados
+        </div>
     </div>
 </body>
 </html>
