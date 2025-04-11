@@ -77,7 +77,7 @@ class BingoCardAdmin(admin.ModelAdmin):
             event_id = request.session.get('event_id')
             
             if not cards or not event_id:
-                self.message_user(request, "No cards available. Generate cards first.", level='error')
+                self.message_user(request, "No hay cartones disponibles, debes tener cartones", level='error')
                 return redirect('admin:generate-cards')
             
             # Create a request object for the viewset
@@ -104,8 +104,8 @@ class BingoCardAdmin(admin.ModelAdmin):
             cards = request.session.get('generated_cards', [])
             event_id = request.session.get('event_id')
             email = request.POST.get('email')
-            subject = request.POST.get('subject', 'Your Bingo Cards')
-            message = request.POST.get('message', 'Here are your bingo cards for the event.')
+            subject = request.POST.get('subject', 'Cartones de Bingo')
+            message = request.POST.get('message', 'Tengo tus cartones de bingo adjuntos.')
             
             if not cards or not event_id or not email:
                 self.message_user(request, "Missing required information", level='error')
@@ -126,9 +126,9 @@ class BingoCardAdmin(admin.ModelAdmin):
             response = card_viewset.email_cards(request._request)
             
             if response.data.get('success'):
-                self.message_user(request, f"Cards successfully sent to {email}")
+                self.message_user(request, f"Email fue enviado exitosamente a {email}", level='success')
             else:
-                self.message_user(request, f"Failed to send email: {response.data.get('message')}", level='error')
+                self.message_user(request, f"Hubo un error enviando el email: {response.data.get('message')}", level='error')
             
             return redirect('admin:bingo_bingocard_changelist')
         

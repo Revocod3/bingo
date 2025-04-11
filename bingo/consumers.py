@@ -34,7 +34,7 @@ class BingoConsumer(AsyncWebsocketConsumer):
                 self.user = await self.get_user_from_id(user_id)
                 self.scope['user'] = self.user
             except (InvalidTokenError, ExpiredSignatureError) as e:
-                logger.error(f"Invalid token: {str(e)}")
+                logger.error(f"Token invalido: {str(e)}")
                 self.user = None
                 await self.close(code=4001)  # Unauthorized
                 return
@@ -106,7 +106,7 @@ class BingoConsumer(AsyncWebsocketConsumer):
             else:
                 logger.warning(f"Unknown message type: {message_type}")
         except json.JSONDecodeError:
-            logger.error("Received invalid JSON")
+            logger.error("Invalid JSON received")
         except Exception as e:
             logger.exception(f"Error handling WebSocket message: {str(e)}")
 
@@ -116,7 +116,7 @@ class BingoConsumer(AsyncWebsocketConsumer):
         if not self.user.is_authenticated or not await self._is_event_admin(self.event_id, self.user.id):
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': 'You do not have permission to call numbers'
+                'message': 'No tienes permisos para llamar números'
             }))
             return
         
@@ -125,7 +125,7 @@ class BingoConsumer(AsyncWebsocketConsumer):
         if not number_value or not isinstance(number_value, int) or number_value < 1 or number_value > 75:
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': 'Invalid number. Must be an integer between 1 and 75.'
+                'message': 'Numero inválido. Debe ser un número entre 1 y 75'
             }))
             return
             
@@ -151,7 +151,7 @@ class BingoConsumer(AsyncWebsocketConsumer):
         if not self.user.is_authenticated:
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': 'You must be logged in to claim a win'
+                'message': 'Inicia sesión para reclamar una victoria'
             }))
             return
         
@@ -162,7 +162,7 @@ class BingoConsumer(AsyncWebsocketConsumer):
         if not card_id:
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': 'Missing card_id'
+                'message': 'La ID del cartón es inválida o no se proporcionó'
             }))
             return
             

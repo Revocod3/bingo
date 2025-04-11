@@ -45,9 +45,9 @@ class EventViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         try:
             serializer.save()
-            logger.info("Event created successfully")
+            logger.info("Evento creado con éxito")
         except Exception as e:
-            logger.error(f"Error creating event: {str(e)}")
+            logger.error(f"Error creando evento: {str(e)}")
             raise
     
     @action(detail=True, methods=['get'])
@@ -88,8 +88,8 @@ class EventViewSet(viewsets.ModelViewSet):
                 "patterns": WinningPatternSerializer(patterns, many=True).data
             })
         except Exception as e:
-            logger.error(f"Error setting patterns for event: {str(e)}")
-            return Response({"error": f"Failed to set patterns: {str(e)}"}, 
+            logger.error(f"Error definiendo patrones para el evento: {str(e)}")
+            return Response({"error": f"Falló al definir patrones: {str(e)}"}, 
                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'])
@@ -99,7 +99,7 @@ class EventViewSet(viewsets.ModelViewSet):
         pattern_id = request.data.get('pattern_id')
         
         if not pattern_id:
-            return Response({"error": "pattern_id is required"}, 
+            return Response({"error": "pattern_id is required"},
                           status=status.HTTP_400_BAD_REQUEST)
         
         try:
@@ -108,13 +108,14 @@ class EventViewSet(viewsets.ModelViewSet):
             
             return Response({
                 "success": True,
-                "message": f"Pattern '{pattern.display_name}' added to event '{event.name}'"
+                "message": f"El patrón '{pattern.display_name}' ha sido añadido al evento '{event.name}'",
             })
         except WinningPattern.DoesNotExist:
-            return Response({"error": "Pattern not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Patrón no encontrado"}, 
+                          status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error adding pattern to event: {str(e)}")
-            return Response({"error": f"Failed to add pattern: {str(e)}"}, 
+            logger.error(f"Error añadiendo patrón al evento: {str(e)}")
+            return Response({"error": f"Falló al añadir patrón: {str(e)}"}, 
                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=True, methods=['post'])
@@ -133,13 +134,14 @@ class EventViewSet(viewsets.ModelViewSet):
             
             return Response({
                 "success": True,
-                "message": f"Pattern '{pattern.display_name}' removed from event '{event.name}'"
+                "message": f"El patrón '{pattern.display_name}' ha sido eliminado del evento '{event.name}'",
             })
         except WinningPattern.DoesNotExist:
-            return Response({"error": "Pattern not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Patrón no encontrado"}, 
+                          status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error removing pattern from event: {str(e)}")
-            return Response({"error": f"Failed to remove pattern: {str(e)}"}, 
+            logger.error(f"Error removiendo patrón del evento: {str(e)}")
+            return Response({"error": f"Falló al remover patrón: {str(e)}"}, 
                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class BingoCardViewSet(viewsets.ModelViewSet):
@@ -165,8 +167,8 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         try:
             event = Event.objects.get(id=event_id)
         except Event.DoesNotExist:
-            return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
-        
+            return Response({"error": "Evento no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+    
         # Here you would implement your card generation logic
         # For now, creating a basic card
         card = BingoCard.objects.create(event=event)
@@ -180,13 +182,13 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             number = request.data.get('number')
             
             if not number:
-                return Response({'error': 'Number is required'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Numero requerido'}, status=status.HTTP_400_BAD_REQUEST)
                 
             # Logic to mark a number on the bingo card
-            logger.info(f"Marking number {number} on card {pk}")
+            logger.info(f"Marcando el número {number} en la tarjeta {card.id}")
             return Response({'status': 'number marked'})
         except Exception as e:
-            logger.error(f"Error marking number: {str(e)}")
+            logger.error(f"Error marcando el número: {str(e)}", exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
@@ -216,7 +218,7 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         # Try to acquire the lock
         lock_acquired = cache.add(lock_id, "locked", lock_timeout)
         if not lock_acquired:
-            return Response({"error": "Another purchase is in progress"}, 
+            return Response({"error": "Otra compra está en progreso"}, 
                            status=status.HTTP_429_TOO_MANY_REQUESTS)
         
         try:
@@ -283,7 +285,7 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             logger.error(f"Error during card purchase: {str(e)}", exc_info=True)
             return Response({
                 "success": False,
-                "message": f"Purchase failed: {str(e)}"
+                "message": f"Falló al comprar cartones: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         finally:
             # Release the lock
@@ -352,7 +354,7 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             except BingoCard.DoesNotExist:
                 response_data = {
                     "success": False,
-                    "message": "Card not found or doesn't belong to you"
+                    "message": "Cartón no encontrado o no pertenece al usuario"
                 }
                 response_serializer = BingoClaimResponseSerializer(data=response_data)
                 response_serializer.is_valid(raise_exception=True)
@@ -379,7 +381,7 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                 
                 response_data = {
                     "success": True,
-                    "message": f"Congratulations! Valid bingo claim with pattern {win_details['pattern_name']}!",
+                    "message": f"¡Felicidades! Has ganado con el patrón '{win_details['pattern_name']}'",
                     "card": card_data,  # Use pre-serialized data
                     "winning_pattern": win_details
                 }
@@ -389,7 +391,7 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             else:
                 response_data = {
                     "success": False,
-                    "message": "Invalid winning pattern or not all numbers have been called"
+                    "message": "No has ganado con el patrón especificado",
                 }
                 response_serializer = BingoClaimResponseSerializer(data=response_data)
                 response_serializer.is_valid(raise_exception=True)
@@ -399,7 +401,7 @@ class BingoCardViewSet(viewsets.ModelViewSet):
             logger.error(f"Error verifying win: {str(e)}", exc_info=True)
             response_data = {
                 "success": False,
-                "message": f"Error verifying win: {str(e)}"
+                "message": f"Error veriificando el premio: {str(e)}"
             }
             response_serializer = BingoClaimResponseSerializer(data=response_data)
             response_serializer.is_valid(raise_exception=True)
@@ -449,14 +451,14 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                 "event_id": card.event_id,
                 "called_numbers": called_numbers,
                 "winning_pattern": win_details if is_winner else None,
-                "message": "Pattern completed!" if is_winner else "Pattern not completed yet"
+                "message": "Pattern completed!" if is_winner else "Patrón no completado",
             })
             
         except Exception as e:
             logger.error(f"Error verifying pattern: {str(e)}", exc_info=True)
             return Response({
                 "success": False,
-                "message": f"Error verifying pattern: {str(e)}"
+                "message": f"Error verificando el patrón: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
