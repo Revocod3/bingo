@@ -1,7 +1,24 @@
 {
+  "openapi": "3.0.3",
   "info": {
-    "title": "Authentication Help",
+    "title": "BINGO API",
     "description": "# How to authenticate with the Bingo API\n\n## JWT Authentication\n\n1. Send a POST request to `/api/auth/token/` with your credentials:\n```json\n{\n  \"email\": \"your-email@example.com\",\n  \"password\": \"your-password\"\n}\n```\n\n2. You will receive a response containing `access` and `refresh` tokens:\n```json\n{\n  \"access\": \"eyJ0eXAiOiJ....\",\n  \"refresh\": \"eyJ0eXAiOiJ....\"\n}\n```\n\n3. In Swagger UI, click the 'Authorize' button and enter your access token with the 'Bearer' prefix:\n```\nBearer eyJ0eXAiOiJ....\n```\n\n4. Now you can make authenticated requests to the API endpoints.",
     "version": "1.0.0"
-  }
+  },
+  "paths": {},
+  "components": {
+    "securitySchemes": {
+      "Bearer": {
+        "type": "apiKey",
+        "description": "JWT token de autenticación. Formato: 'Bearer {token}'",
+        "name": "Authorization",
+        "in": "header"
+      }
+    }
+  },
+  "security": [
+    {
+      "Bearer": []
+    }
+  ]
 }
