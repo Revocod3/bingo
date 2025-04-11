@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import dj_database_url
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -36,7 +37,6 @@ DEBUG = True  # Only temporarily to see error details!
 
 ALLOWED_HOSTS = ['*']
 
-import dj_database_url
 
 # Application definition
 
@@ -49,14 +49,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',  # Required for allauth
-    
+
     # Swagger
     'drf_spectacular',
-    
+
     # REST Framework
     'rest_framework',
     'rest_framework.authtoken',
-    
+
     # Authentication
     'allauth',
     'allauth.account',
@@ -66,7 +66,7 @@ INSTALLED_APPS = [
     'dj_rest_auth',
     'dj_rest_auth.registration',
     'corsheaders',  # Add this line
-    
+
     # Project apps
     'users',
     'bingo',
@@ -75,7 +75,7 @@ INSTALLED_APPS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -85,17 +85,19 @@ REST_FRAMEWORK = {
 }
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  
-    'core.middleware.DatabaseConnectionMiddleware', 
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'core.middleware.DatabaseConnectionMiddleware',
+    # Add our new error translation middleware
+    'core.middleware.ErrorTranslationMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware', 
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -150,7 +152,8 @@ if database_url:
         'sslmode': os.getenv('DB_SSL_MODE', 'prefer'),
     }
     # Log the database host for debugging
-    print(f"Using database URL with host: {DATABASES['default'].get('HOST', 'unknown')}")
+    print(
+        f"Using database URL with host: {DATABASES['default'].get('HOST', 'unknown')}")
 else:
     # Local development database configuration
     DATABASES = {
@@ -218,7 +221,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.CustomUser'
 
 AUTHENTICATION_BACKENDS = [
-    'users.auth_backends.EmailVerificationBackend',  # Custom backend that checks email verification
+    # Custom backend that checks email verification
+    'users.auth_backends.EmailVerificationBackend',
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
@@ -231,7 +235,8 @@ SIMPLE_JWT = {
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',  # Changed to HTTP_AUTHORIZATION
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
-    'TOKEN_OBTAIN_SERIALIZER': 'users.auth_backends.CustomTokenObtainPairSerializer',  # Use our custom serializer
+    # Use our custom serializer
+    'TOKEN_OBTAIN_SERIALIZER': 'users.auth_backends.CustomTokenObtainPairSerializer',
 }
 REST_USE_JWT = True
 JWT_AUTH_COOKIE = 'bingo-app-auth'
@@ -239,13 +244,14 @@ JWT_AUTH_REFRESH_COOKIE = 'bingo-app-refresh-token'
 
 # django-allauth settings
 SITE_ID = 1
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None # Use email for login
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # Use email for login
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
 
 # Update these settings based on BYPASS_EMAIL_VERIFICATION
-BYPASS_EMAIL_VERIFICATION = os.getenv('BYPASS_EMAIL_VERIFICATION', 'False') == 'True'
+BYPASS_EMAIL_VERIFICATION = os.getenv(
+    'BYPASS_EMAIL_VERIFICATION', 'False') == 'True'
 
 # Set these conditionally based on bypass setting
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
@@ -255,7 +261,8 @@ ACCOUNT_EMAIL_REQUIRED = True
 REST_AUTH = {
     'USE_JWT': True,
     'JWT_AUTH_COOKIE': 'bingo-app-auth',  # Match this with JWT_AUTH_COOKIE above
-    'JWT_AUTH_REFRESH_COOKIE': 'bingo-app-refresh-token',  # Match this with JWT_AUTH_REFRESH_COOKIE above
+    # Match this with JWT_AUTH_REFRESH_COOKIE above
+    'JWT_AUTH_REFRESH_COOKIE': 'bingo-app-refresh-token',
     'USER_DETAILS_SERIALIZER': 'users.serializers.UserSerializer',
 }
 
@@ -264,8 +271,9 @@ ACCOUNT_ADAPTER = 'users.adapters.CustomAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'users.adapters.CustomSocialAccountAdapter'
 
 # Email settings - modify with your actual SMTP settings
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')  
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
@@ -273,7 +281,8 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'revocode222@gmail.com')
 
 # Development settings
-BYPASS_EMAIL_VERIFICATION = os.getenv('BYPASS_EMAIL_VERIFICATION', 'False') == 'True'
+BYPASS_EMAIL_VERIFICATION = os.getenv(
+    'BYPASS_EMAIL_VERIFICATION', 'False') == 'True'
 
 # Social authentication providers
 SOCIALACCOUNT_PROVIDERS = {
@@ -391,7 +400,8 @@ ASGI_APPLICATION = 'core.asgi.application'
 redis_host = os.environ.get('REDIS_HOST', 'localhost')
 redis_port = os.environ.get('REDIS_PORT', '6379')
 redis_db = os.environ.get('REDIS_DB', '0')
-redis_url = os.environ.get('REDIS_URL', f'redis://{redis_host}:{redis_port}/{redis_db}')
+redis_url = os.environ.get(
+    'REDIS_URL', f'redis://{redis_host}:{redis_port}/{redis_db}')
 
 CHANNEL_LAYERS = {
     'default': {
@@ -414,14 +424,14 @@ if ENVIRONMENT == 'production':
                 CORS_ALLOWED_ORIGINS.append(domain)
     elif frontend_url and frontend_url not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(frontend_url)
-    
+
     # Explicitly add Vercel frontend URL if not already added
     if "https://bingo-frontend-three.vercel.app" not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append("https://bingo-frontend-three.vercel.app")
-    
+
     # Also add CSRF trusted origins for the same domains
     CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
-    
+
     # Additional CORS headers for production
     CORS_ALLOW_METHODS = [
         'DELETE',
@@ -431,7 +441,7 @@ if ENVIRONMENT == 'production':
         'POST',
         'PUT',
     ]
-    
+
     CORS_ALLOW_HEADERS = [
         'accept',
         'accept-encoding',
@@ -448,11 +458,12 @@ if ENVIRONMENT == 'production':
 # Use lowercase 'true' to match what Render.com sets
 if os.getenv('RENDER', '').lower() == 'true':
     # Debug options - remove in final production
-    print(f"Running on Render.com with CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
-    
+    print(
+        f"Running on Render.com with CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
+
     # Don't use this in production - only temporarily for debugging:
     CORS_ALLOW_ALL_ORIGINS = True
-    
+
     # Update database configuration
     DATABASES = {
         'default': dj_database_url.config(
@@ -460,7 +471,7 @@ if os.getenv('RENDER', '').lower() == 'true':
             conn_max_age=600
         )
     }
-    
+
     # Security settings for Render
     SECURE_SSL_REDIRECT = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -475,21 +486,21 @@ if os.getenv('RENDER', '').lower() == 'true':
         if render_url not in CORS_ALLOWED_ORIGINS:
             CORS_ALLOWED_ORIGINS.append(render_url.rstrip('/'))
             CSRF_TRUSTED_ORIGINS.append(render_url.rstrip('/'))
-    
+
     # Ensure API and frontend URLs are in CSRF trusted origins
     important_urls = [
         "https://bingo-api-94i2.onrender.com",
         "https://bingo-frontend-three.vercel.app",
         # Add any new URLs here
     ]
-    
+
     for url in important_urls:
         url = url.rstrip('/')  # Remove trailing slash
         if url not in CSRF_TRUSTED_ORIGINS:
             CSRF_TRUSTED_ORIGINS.append(url)
         if url not in CORS_ALLOWED_ORIGINS:
             CORS_ALLOWED_ORIGINS.append(url)
-    
+
     # Configure Redis for Render
     REDIS_URL = os.getenv('REDIS_URL', '')
     if REDIS_URL:
@@ -501,6 +512,6 @@ if os.getenv('RENDER', '').lower() == 'true':
                 },
             },
         }
-    
+
     print(f"Final CORS_ALLOWED_ORIGINS: {CORS_ALLOWED_ORIGINS}")
     print(f"Final CSRF_TRUSTED_ORIGINS: {CSRF_TRUSTED_ORIGINS}")
