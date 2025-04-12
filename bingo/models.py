@@ -64,7 +64,7 @@ class Number(models.Model):
 class TestCoinBalance(models.Model):
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name='test_coins')
-    balance = models.PositiveIntegerField(default=0)
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     last_updated = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -83,8 +83,9 @@ class TestCoinBalance(models.Model):
         # Select for update to prevent race conditions
         balance = cls.objects.select_for_update().get(user_id=user_id)
 
-        # Convert amount to integer to ensure proper deduction
-        amount = int(amount)
+        # Convert amount to Decimal to ensure proper decimal arithmetic
+        from decimal import Decimal
+        amount = Decimal(str(amount))
 
         if balance.balance < amount:
             return False, "Insufficient coins"
