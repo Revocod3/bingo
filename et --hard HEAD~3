@@ -1,0 +1,5 @@
+[33m757b3a5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m add --mark-winner option to verify_win_with_number command; update admin to support automatic winner marking
+[33ma96c01a[m add WonPattern admin class to manage winning patterns; implement display of winning cards and user info
+[33m0c20138[m add WonPattern model to track winning patterns in events; implement unique constraints and indexing for efficient querying
+[33m46689af[m refactor TestCoinBalance model to use DecimalField for balance; update arithmetic to ensure proper decimal handling
+[33ma7182df[m add static schema view for API documentation; update swagger.json for improved authentication details
