@@ -230,7 +230,7 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                 if balance.balance < total_cost:
                     return Response({
                         "success": False,
-                        "message": f"No tienes saldo suficiente. Necesitas tener {total_cost}, y tu saldo es {balance.balance}."
+                        "message": f"No tienes saldo suficiente. Necesitas tener {total_cost:.2f}, y tu saldo es {balance.balance:.2f}."
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
                 # Deduct coins with F() to prevent race conditions

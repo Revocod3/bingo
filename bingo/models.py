@@ -84,11 +84,15 @@ class TestCoinBalance(models.Model):
         balance = cls.objects.select_for_update().get(user_id=user_id)
 
         # Convert amount to Decimal to ensure proper decimal arithmetic
-        from decimal import Decimal
-        amount = Decimal(str(amount))
+        from decimal import Decimal, ROUND_DOWN
+        amount = Decimal(str(amount)).quantize(
+            Decimal('0.01'), rounding=ROUND_DOWN)
+        current_balance = Decimal(str(balance.balance)).quantize(
+            Decimal('0.01'), rounding=ROUND_DOWN)
 
-        if balance.balance < amount:
-            return False, "Insufficient coins"
+        # Fix for precision issue - comparing rounded values
+        if current_balance < amount:
+            return False, f"No tienes saldo suficiente. Necesitas tener {amount:.2f}, y tu saldo es {current_balance:.2f}."
 
         balance.balance = F('balance') - amount
         balance.save()
