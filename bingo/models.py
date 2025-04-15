@@ -35,8 +35,59 @@ class BingoCard(models.Model):
     is_winner = models.BooleanField(default=False)
     hash = models.CharField(max_length=64, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Agregar campo correlativo para identificar cartones de forma secuencial por evento
+    correlative_id = models.CharField(
+        max_length=20, null=True, blank=True, db_index=True)
     # Agregar campo de metadatos para almacenar información adicional como el ID de transacción
     metadata = models.JSONField(default=dict, blank=True, null=True)
+
+    class Meta:
+        # Asegurar que el correlative_id sea único por evento
+        unique_together = [['event', 'correlative_id']]
+
+    @classmethod
+    def generate_correlative_id(cls, event):
+        """
+        Genera un ID correlativo único para un cartón de bingo.
+        El formato es: {prefijo_evento}-{secuencia}
+
+        Por ejemplo: EV25-0001, EV25-0002, etc.
+        """
+        # Extraer iniciales o prefijo del evento (primeras 2 letras + último dígito del año)
+        event_name = event.name.strip()
+        prefix = ""
+
+        # Extraer las primeras letras del nombre del evento (máximo 2)
+        if event_name:
+            letters = ''.join(c for c in event_name if c.isalpha())
+            prefix += letters[:2].upper()
+        else:
+            prefix += "EV"  # Prefijo por defecto si no hay nombre
+
+        # Añadir información de fecha (último dígito del año)
+        import datetime
+        year_digit = str(datetime.date.today().year)[-2:]
+        prefix += year_digit
+
+        # Obtener el último correlativo para este evento
+        with transaction.atomic():
+            last_card = cls.objects.filter(
+                event=event,
+                correlative_id__startswith=f"{prefix}-"
+            ).order_by('-correlative_id').first()
+
+            if last_card and last_card.correlative_id:
+                # Extraer el número de secuencia del último correlativo
+                try:
+                    last_seq = int(last_card.correlative_id.split('-')[1])
+                    next_seq = last_seq + 1
+                except (ValueError, IndexError):
+                    next_seq = 1
+            else:
+                next_seq = 1
+
+            # Formatear el correlativo con ceros a la izquierda (4 dígitos)
+            return f"{prefix}-{next_seq:04d}"
 
 
 class Wallet(models.Model):

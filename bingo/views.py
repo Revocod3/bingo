@@ -274,13 +274,17 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                         )
                     ).hexdigest()
 
+                    # Generar un correlative_id único para esta tarjeta
+                    correlative_id = BingoCard.generate_correlative_id(event)
+
                     # Create the card
                     card = BingoCard.objects.create(
                         event=event,
                         user=user,
                         numbers=card_numbers,
                         is_winner=False,
-                        hash=card_hash
+                        hash=card_hash,
+                        correlative_id=correlative_id
                     )
                     cards.append(card)
 
@@ -689,6 +693,9 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                         )
                     ).hexdigest()
 
+                    # Generar un correlative_id único para esta tarjeta
+                    correlative_id = BingoCard.generate_correlative_id(event)
+
                     # Create the card with transaction_id
                     card = BingoCard.objects.create(
                         event=event,
@@ -696,6 +703,7 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                         numbers=card_numbers,
                         is_winner=False,
                         hash=card_hash,
+                        correlative_id=correlative_id,
                         # Store metadata about this transaction
                         metadata={
                             'transaction_id': transaction_id,
@@ -1033,11 +1041,32 @@ class BingoCardViewSet(viewsets.ModelViewSet):
         card_title = Paragraph(
             "<font size='10'>BINGO CARD</font>", styles['Normal'])
 
-        # Always show the full card ID regardless of length
-        card_id_text = Paragraph(
-            f"<font size='7'>ID: {card_id}</font>", styles['Normal'])
+        # Determinar qué ID mostrar, priorizar correlative_id sobre UUID
+        display_id = card_id
+        correlative_id = None
 
-        # Get seller info if available from metadata\
+        # Si tenemos id, buscar el correlative_id en la base de datos
+        if isinstance(card_id, str) and len(card_id) > 10:  # Probablemente es un UUID
+            try:
+                card = BingoCard.objects.get(id=card_id)
+                if card.correlative_id:
+                    correlative_id = card.correlative_id
+                    display_id = correlative_id  # Mostrar correlativo si existe
+            except Exception:
+                # Si hay un error, usar el ID original
+                pass
+
+        # Texto del ID del cartón
+        card_id_text = Paragraph(
+            f"<font size='7'>ID: {display_id}</font>", styles['Normal'])
+
+        # Si tenemos el correlativo pero no es lo que estamos mostrando como ID, mostrarlo adicional
+        if correlative_id and display_id != correlative_id:
+            correlative_text = Paragraph(
+                f"<font size='7'>REF: {correlative_id}</font>", styles['Normal'])
+            container_data.append([correlative_text, ''])
+
+        # Get seller info if available from metadata
         user = getattr(event, 'user', None)
         if user:
             seller_info = Paragraph(
