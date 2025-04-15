@@ -85,16 +85,19 @@ class TestCoinBalance(models.Model):
 
         # Convert amount to Decimal to ensure proper decimal arithmetic
         from decimal import Decimal, ROUND_DOWN
+
+        # Normalize both values to 2 decimal places to avoid precision issues
         amount = Decimal(str(amount)).quantize(
             Decimal('0.01'), rounding=ROUND_DOWN)
         current_balance = Decimal(str(balance.balance)).quantize(
             Decimal('0.01'), rounding=ROUND_DOWN)
 
-        # Fix for precision issue - comparing rounded values
+        # Compare the normalized values
         if current_balance < amount:
             return False, f"No tienes saldo suficiente. Necesitas tener {amount:.2f}, y tu saldo es {current_balance:.2f}."
 
-        balance.balance = F('balance') - amount
+        # Update the balance using the normalized amount
+        balance.balance = current_balance - amount
         balance.save()
         balance.refresh_from_db()
         return True, balance
