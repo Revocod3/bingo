@@ -15,7 +15,7 @@ class BingoCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = BingoCard
         fields = ['id', 'event', 'numbers', 'is_winner',
-                  'created_at', 'updated_at', 'user', 'correlative_id']
+                  'created_at', 'user', 'correlative_id']
         # Mark hash as read-only to prevent validation issues
         read_only_fields = ['hash']
 
