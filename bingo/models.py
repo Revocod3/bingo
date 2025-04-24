@@ -26,6 +26,42 @@ class Event(models.Model):
     def __str__(self):
         return self.name
 
+    def should_be_live(self):
+        """
+        Determina si un evento debe estar en línea basándose en la hora actual
+        Un evento debe estar en línea si la hora actual está entre start y end
+        """
+        import datetime
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return self.is_active and self.start <= now <= self.end
+
+    def update_live_status(self):
+        """
+        Actualiza el estado en línea del evento basándose en la hora actual
+        Retorna True si el estado cambió, False si permaneció igual
+        """
+        should_be_live = self.should_be_live()
+        if should_be_live != self.is_live:
+            self.is_live = should_be_live
+            self.save(update_fields=['is_live'])
+            return True
+        return False
+
+    @classmethod
+    def update_all_live_statuses(cls):
+        """
+        Actualiza el estado en línea de todos los eventos activos
+        Retorna una lista de eventos actualizados
+        """
+        active_events = cls.objects.filter(is_active=True)
+        updated_events = []
+
+        for event in active_events:
+            if event.update_live_status():
+                updated_events.append(event)
+
+        return updated_events
+
 
 class BingoCard(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -49,27 +85,37 @@ class BingoCard(models.Model):
     def generate_correlative_id(cls, event):
         """
         Genera un ID correlativo único para un cartón de bingo.
-        El formato es: {prefijo_evento}-{secuencia}
+        El formato es: {primeras_2_letras}{ultimas_2_letras}{mes}{año}-{secuencia}
 
-        Por ejemplo: EV25-0001, EV25-0002, etc.
+        Por ejemplo: CHMD42025-0001, CHMD42025-0002, etc.
         """
-        # Extraer iniciales o prefijo del evento (primeras 2 letras + último dígito del año)
+        # Extraer iniciales del evento (primeras 2 letras y últimas 2 letras)
         event_name = event.name.strip()
         prefix = ""
 
-        # Extraer las primeras letras del nombre del evento (máximo 2)
+        # Obtener las primeras 2 letras
         if event_name:
-            letters = ''.join(c for c in event_name if c.isalpha())
-            prefix += letters[:2].upper()
+            first_letters = ''.join(c for c in event_name if c.isalpha())
+            prefix += first_letters[:2].upper()
         else:
             prefix += "EV"  # Prefijo por defecto si no hay nombre
 
-        # Añadir información de fecha (último dígito del año)
-        import datetime
-        year_digit = str(datetime.date.today().year)[-2:]
-        prefix += year_digit
+        # Obtener las últimas 2 letras
+        if event_name and len(event_name) >= 2:
+            last_letters = ''.join(c for c in event_name if c.isalpha())
+            prefix += last_letters[-2:].upper()
+        else:
+            prefix += "XX"  # Sufijo por defecto si no hay suficientes letras
 
-        # Obtener el último correlativo para este evento
+        # Añadir información de fecha (mes y año)
+        import datetime
+        today = datetime.date.today()
+        month = str(today.month).zfill(1)  # Mes con un dígito
+        year = str(today.year)[-4:]  # Los 4 dígitos del año
+
+        prefix += f"{month}{year}"
+
+        # Obtener el último correlativo para este evento con el nuevo formato
         with transaction.atomic():
             last_card = cls.objects.filter(
                 event=event,

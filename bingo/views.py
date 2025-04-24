@@ -51,6 +51,63 @@ class EventViewSet(viewsets.ModelViewSet):
             logger.error(f"Error creando evento: {str(e)}")
             raise
 
+    @action(detail=False, methods=['post'])
+    def update_live_status(self, request):
+        """
+        Actualiza el estado 'en línea' de todos los eventos activos basándose en la hora actual.
+        Un evento está 'en línea' si la hora actual está entre su hora de inicio y fin.
+        """
+        try:
+            updated_events = Event.update_all_live_statuses()
+
+            # Devolver información sobre los eventos actualizados
+            updated_data = []
+            for event in updated_events:
+                updated_data.append({
+                    'id': event.id,
+                    'name': event.name,
+                    'is_live': event.is_live,
+                    'start': event.start,
+                    'end': event.end
+                })
+
+            return Response({
+                'success': True,
+                'message': f'Se actualizaron {len(updated_events)} eventos',
+                'updated_events': updated_data
+            })
+        except Exception as e:
+            logger.error(f"Error actualizando estado en línea: {str(e)}")
+            return Response({
+                'success': False,
+                'message': f'Error actualizando estado en línea: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['get'])
+    def check_live_status(self, request, pk=None):
+        """
+        Comprueba y actualiza el estado 'en línea' de un evento específico basándose en la hora actual.
+        """
+        try:
+            event = self.get_object()
+            was_changed = event.update_live_status()
+
+            return Response({
+                'id': event.id,
+                'name': event.name,
+                'is_live': event.is_live,
+                'start': event.start,
+                'end': event.end,
+                'was_updated': was_changed
+            })
+        except Exception as e:
+            logger.error(
+                f"Error comprobando estado en línea del evento {pk}: {str(e)}")
+            return Response({
+                'success': False,
+                'message': f'Error comprobando estado en línea: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=True, methods=['get'])
     def patterns(self, request, pk=None):
         """Get all winning patterns allowed for this event"""
@@ -432,7 +489,14 @@ class BingoCardViewSet(viewsets.ModelViewSet):
     def verify_pattern(self, request, pk=None):
         """Verify if a specific pattern is completed on a card"""
         try:
-            card = self.get_object()
+            # Intentar obtener la tarjeta por UUID primero
+            try:
+                card = BingoCard.objects.get(id=pk, user=request.user)
+            except (BingoCard.DoesNotExist, ValidationError):
+                # Si falla, intentar buscar por correlative_id (formato amigable)
+                card = BingoCard.objects.get(
+                    correlative_id=pk, user=request.user)
+
             pattern_name = request.query_params.get('pattern', 'bingo')
 
             # Get all called numbers for this event
@@ -476,16 +540,22 @@ class BingoCardViewSet(viewsets.ModelViewSet):
                 "called_numbers": called_numbers,
                 "winning_pattern": win_details if is_winner else None,
                 "message": "Pattern completed!" if is_winner else "Patrón no completado",
+                "is_winner": is_winner
             })
 
+        except BingoCard.DoesNotExist:
+            return Response({
+                "success": False,
+                "message": "Cartón no encontrado o no pertenece a este usuario"
+            }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error verifying pattern: {str(e)}", exc_info=True)
+            logger.error(f"Error verificando patrón: {str(e)}", exc_info=True)
             return Response({
                 "success": False,
                 "message": f"Error verificando el patrón: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def status(self, request, pk=None):
         """Get comprehensive status of a card, including all pattern progress"""
         try:
