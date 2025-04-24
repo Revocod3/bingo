@@ -487,15 +487,16 @@ class BingoCardViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def verify_pattern(self, request, pk=None):
-        """Verify if a specific pattern is completed on a card"""
+        """Verify if a specific pattern is completed on a card using only UUID"""
         try:
-            # Intentar obtener la tarjeta por UUID primero
+            # Intentar obtener la tarjeta por UUID únicamente
             try:
                 card = BingoCard.objects.get(id=pk, user=request.user)
             except (BingoCard.DoesNotExist, ValidationError):
-                # Si falla, intentar buscar por correlative_id (formato amigable)
-                card = BingoCard.objects.get(
-                    correlative_id=pk, user=request.user)
+                return Response({
+                    "success": False,
+                    "message": "Cartón no encontrado o no pertenece a este usuario (UUID inválido o no encontrado)"
+                }, status=status.HTTP_404_NOT_FOUND)
 
             pattern_name = request.query_params.get('pattern', 'bingo')
 
@@ -1438,7 +1439,7 @@ class TestCoinBalanceViewSet(viewsets.ModelViewSet):
     def my_balance(self, request):
         """Get the current user's test coin balance"""
         balance, created = TestCoinBalance.objects.get_or_create(
-            user=request.user,
+            user=self.request.user,
             defaults={"balance": 0}
         )
         return Response({
